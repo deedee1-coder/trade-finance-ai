@@ -1,0 +1,9 @@
+openai
+python-dotenv
+pydantic
+pyyaml
+streamlit
+pandas
+pytest
+pytesseract
+Pillow

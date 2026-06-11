@@ -1,0 +1,22 @@
+# Virtual environment
+venv/
+
+# Environment variables
+.env
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Generated reports
+reports/generated/
+
+# Generated run files
+runs/*
+!runs/.gitkeep
+
+# VS Code settings (optional)
+.vscode/
+
+# macOS files
+.DS_Store
