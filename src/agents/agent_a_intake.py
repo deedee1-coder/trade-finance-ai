@@ -1,0 +1,28 @@
+def run_intake_agent(case_id: str) -> dict:
+    print("[Agent A] Intake & Classification Agent running...")
+
+    return {
+        "case_id": case_id,
+        "case_name": "Mock Trade Finance Case",
+        "documents": [
+            {
+                "document_id": "DOC_001",
+                "document_type": "letter_of_credit",
+                "file_name": "letter_of_credit.txt",
+                "ocr_confidence": 0.98
+            },
+            {
+                "document_id": "DOC_002",
+                "document_type": "commercial_invoice",
+                "file_name": "commercial_invoice.txt",
+                "ocr_confidence": 0.96
+            }
+        ],
+        "required_documents": [
+            "letter_of_credit",
+            "commercial_invoice",
+            "bill_of_lading",
+            "packing_list",
+            "certificate_of_origin"
+        ]
+    }
