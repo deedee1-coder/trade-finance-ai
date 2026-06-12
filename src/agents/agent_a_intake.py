@@ -4,6 +4,8 @@ def run_intake_agent(case_id: str) -> dict:
     return {
         "case_id": case_id,
         "case_name": "Mock Trade Finance Case",
+        "expected_result": "APPROVE",
+        "created_at": "2026-06-12T12:00:00Z",
         "documents": [
             {
                 "document_id": "DOC_001",
