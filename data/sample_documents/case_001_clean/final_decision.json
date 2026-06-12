@@ -1,0 +1,8 @@
+{
+  "case_id": "CASE-001",
+  "final_status": "APPROVED",
+  "reason": "All documents are consistent, compliant with Letter of Credit requirements, within presentation period, and contain no sanctions concerns.",
+  "requires_human_review": false,
+  "requires_compliance_escalation": false,
+  "blocking_issues": []
+}

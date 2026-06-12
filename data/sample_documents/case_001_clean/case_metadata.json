@@ -1,0 +1,17 @@
+{
+  "case_id": "CASE-001",
+  "case_name": "Clean Bundle",
+  "expected_result": "APPROVED",
+  "presentation_date": "2026-06-15",
+  "documents_included": [
+    "letter_of_credit.pdf",
+    "commercial_invoice.pdf",
+    "bill_of_lading.pdf",
+    "packing_list.pdf",
+    "certificate_of_origin.pdf"
+  ],
+  "fake_sanctions_list": [
+    "Restrictedland"
+  ],
+  "known_issue": null
+}
