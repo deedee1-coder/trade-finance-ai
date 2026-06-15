@@ -1,0 +1,32 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Context Packet",
+  "type": "object",
+  "required": ["run_id", "created_at", "bundle_path", "manifest", "required_documents", "documents", "missing_documents", "status"],
+  "properties": {
+    "run_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "bundle_path": { "type": "string" },
+    "manifest_path": { "type": "string" },
+    "manifest": { "type": "object" },
+    "required_documents": { "type": "array", "items": { "type": "string" } },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["document_type", "filename", "source_path", "required", "present"],
+        "properties": {
+          "document_type": { "type": "string" },
+          "filename": { "type": "string" },
+          "source_path": { "type": "string" },
+          "run_path": { "type": ["string", "null"] },
+          "required": { "type": "boolean" },
+          "present": { "type": "boolean" }
+        }
+      }
+    },
+    "missing_documents": { "type": "array", "items": { "type": "string" } },
+    "extra_files": { "type": "array", "items": { "type": "string" } },
+    "status": { "type": "string" }
+  }
+}

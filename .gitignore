@@ -1,22 +1,24 @@
-# Virtual environment
+﻿# Local Python environment
 venv/
+.venv/
 
-# Environment variables
+# Environment variables / secrets
 .env
+.env.local
 
-# Python cache files
+# Python cache and test cache
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+
+# Generated run outputs
+runs/*
+!runs/.gitkeep
 
 # Generated reports
 reports/generated/
 
-# Generated run files
-runs/*
-!runs/.gitkeep
-
-# VS Code settings (optional)
+# Editor / OS files
 .vscode/
-
-# macOS files
 .DS_Store
+Thumbs.db

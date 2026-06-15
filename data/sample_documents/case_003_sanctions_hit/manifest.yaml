@@ -1,0 +1,9 @@
+﻿case_id: case_003_sanctions_hit
+required_documents:
+  - letter_of_credit.pdf
+  - commercial_invoice.pdf
+  - bill_of_lading.pdf
+documents:
+  letter_of_credit: letter_of_credit.pdf
+  commercial_invoice: commercial_invoice.pdf
+  bill_of_lading: bill_of_lading.pdf
