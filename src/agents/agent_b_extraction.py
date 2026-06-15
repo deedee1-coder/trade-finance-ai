@@ -1,0 +1,24 @@
+def run_extraction_agent(context: dict) -> dict:
+    print("[Agent B] Field Extraction Agent running...")
+
+    case_id = context["case_id"]
+
+    return {
+        "case_id": case_id,
+        "extracted_fields": {
+            "applicant_name": "Northstar Imports Ltd",
+            "beneficiary_name": "Global Textiles Export Co",
+            "invoice_amount": 10000,
+            "lc_amount": 10000,
+            "currency": "USD",
+            "shipment_date": "2026-05-20",
+            "presentation_date": "2026-05-25",
+            "lc_expiry_date": "2026-06-01",
+            "port_of_loading": "Istanbul",
+            "port_of_discharge": "Durres",
+            "goods_description": "Cotton garments",
+            "country_of_origin": "Turkey",
+            "vessel_name": "MV Trade Star"
+        },
+        "document_extractions": []
+    }

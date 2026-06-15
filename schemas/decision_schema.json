@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "decision.schema.json",
+  "title": "Final Decision Schema",
+  "type": "object",
+  "required": [
+    "case_id",
+    "final_decision",
+    "risk_level",
+    "summary",
+    "decision_reasons",
+    "requires_manual_review"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string"
+    },
+    "final_decision": {
+      "type": "string",
+      "enum": ["APPROVE", "MANUAL_REVIEW", "REJECT"]
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "decision_reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requires_manual_review": {
+      "type": "boolean"
+    },
+    "linked_findings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recommended_action": {
+      "type": "string"
+    },
+    "reviewer_notes": {
+      "type": "string"
+    }
+  }
+}

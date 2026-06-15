@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "context.schema.json",
+  "title": "Case Context Schema",
+  "type": "object",
+  "required": [
+    "case_id",
+    "case_name",
+    "expected_result",
+    "documents",
+    "required_documents",
+    "created_at"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "examples": ["CASE_001"]
+    },
+    "case_name": {
+      "type": "string",
+      "examples": ["Clean Bundle"]
+    },
+    "expected_result": {
+      "type": "string",
+      "enum": ["APPROVE", "MANUAL_REVIEW", "REJECT"]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["document_id", "document_type", "file_name", "ocr_confidence"],
+        "properties": {
+          "document_id": {
+            "type": "string"
+          },
+          "document_type": {
+            "type": "string",
+            "enum": [
+              "letter_of_credit",
+              "commercial_invoice",
+              "bill_of_lading",
+              "packing_list",
+              "certificate_of_origin",
+              "insurance_certificate"
+            ]
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "ocr_confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "required_documents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "letter_of_credit",
+          "commercial_invoice",
+          "bill_of_lading",
+          "packing_list",
+          "certificate_of_origin",
+          "insurance_certificate"
+        ]
+      }
+    }
+  }
+}

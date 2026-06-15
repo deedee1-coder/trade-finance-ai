@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finding.schema.json",
+  "title": "Finding Schema",
+  "type": "object",
+  "required": [
+    "case_id",
+    "findings"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "finding_id",
+          "agent_name",
+          "finding_type",
+          "severity",
+          "status",
+          "message",
+          "affected_fields"
+        ],
+        "properties": {
+          "finding_id": {
+            "type": "string"
+          },
+          "agent_name": {
+            "type": "string",
+            "enum": [
+              "ucp_compliance_agent",
+              "cross_document_matching_agent",
+              "sanctions_screening_agent",
+              "field_extraction_agent"
+            ]
+          },
+          "finding_type": {
+            "type": "string",
+            "enum": [
+              "invoice_amount_mismatch",
+              "sanctions_hit",
+              "late_presentation",
+              "low_ocr_confidence",
+              "missing_document",
+              "field_mismatch",
+              "ucp_non_compliance"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["OPEN", "RESOLVED", "IGNORED"]
+          },
+          "message": {
+            "type": "string"
+          },
+          "affected_fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "document_id": {
+                  "type": "string"
+                },
+                "document_type": {
+                  "type": "string"
+                },
+                "field_name": {
+                  "type": "string"
+                },
+                "observed_value": {},
+                "expected_value": {}
+              }
+            }
+          },
+          "recommendation": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

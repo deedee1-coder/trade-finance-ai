@@ -1,0 +1,14 @@
+{
+  "case_id": "CASE_001",
+  "final_decision": "APPROVE",
+  "risk_level": "LOW",
+  "summary": "No issues were found in the document bundle.",
+  "decision_reasons": [
+    "No compliance findings detected.",
+    "No sanctions findings detected.",
+    "No cross-document mismatches detected."
+  ],
+  "requires_manual_review": false,
+  "linked_findings": [],
+  "recommended_action": "Approve the case."
+}
