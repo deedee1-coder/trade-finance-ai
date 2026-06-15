@@ -1,9 +1,10 @@
-openai
+anthropic
 python-dotenv
 pydantic
 pyyaml
 streamlit
 pandas
 pytest
-pytesseract
+pdfplumber
 Pillow
+rapidfuzz

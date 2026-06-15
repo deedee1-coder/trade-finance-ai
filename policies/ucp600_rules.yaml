@@ -1,0 +1,69 @@
+# UCP 600 Rules — loaded by Agent C for compliance checking.
+# Each entry maps to a specific article and defines what to check.
+
+rules:
+  - id: UCP-14A
+    article: "Art. 14(a)"
+    description: "Documents must appear on their face to comply with L/C terms."
+    severity: major
+
+  - id: UCP-14B
+    article: "Art. 14(b)"
+    description: "Presentation must be made no later than 21 calendar days after
+                  the date of shipment (or the period stated in the L/C), but
+                  not later than the expiry date."
+    severity: major
+
+  - id: UCP-14C
+    article: "Art. 14(c)"
+    description: "A transport document date must not be later than the latest
+                  shipment date stipulated in the L/C."
+    severity: major
+
+  - id: UCP-14D
+    article: "Art. 14(d)"
+    description: "Data in a document need not be identical to data in the L/C
+                  but must not conflict with it or with data in other documents."
+    severity: minor
+
+  - id: UCP-17
+    article: "Art. 17"
+    description: "At least one original of each document must be presented."
+    severity: major
+
+  - id: UCP-18
+    article: "Art. 18"
+    description: "Commercial invoice: must be issued by the beneficiary, made
+                  out in the name of the applicant, and in the currency of the L/C."
+    severity: major
+
+  - id: UCP-20
+    article: "Art. 20"
+    description: "Bill of lading: must indicate the name of the carrier, be
+                  signed, show loading on board notation with date, and show
+                  port of loading/discharge as per the L/C."
+    severity: major
+
+  - id: UCP-28
+    article: "Art. 28"
+    description: "Insurance: must be issued for at least 110% of the CIF/CIP
+                  value and cover the goods from port of loading to port of discharge."
+    severity: major
+
+  - id: UCP-31
+    article: "Art. 31"
+    description: "Partial shipments: if prohibited by the L/C, any presentation
+                  covering partial shipment must be refused."
+    severity: major
+
+  - id: UCP-37
+    article: "Art. 18 / 37"
+    description: "Amount tolerance: invoice amount must not exceed the L/C amount
+                  unless a tolerance of +/-5% is expressly permitted."
+    severity: major
+
+  - id: UCP-6
+    article: "Art. 6"
+    description: "L/C expiry: presentation must not be made after the expiry date
+                  and place stipulated in the L/C."
+    severity: major

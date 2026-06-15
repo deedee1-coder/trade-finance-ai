@@ -1,11 +1,22 @@
-﻿{
+{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Context Packet",
+  "title": "ContextPacket",
+  "description": "Output of Agent A. Describes the run, source bundle, copied input documents, and intake status.",
   "type": "object",
-  "required": ["run_id", "created_at", "bundle_path", "manifest", "required_documents", "documents", "missing_documents", "status"],
+  "required": [
+    "run_id",
+    "created_at",
+    "bundle_path",
+    "manifest",
+    "required_documents",
+    "documents",
+    "missing_documents",
+    "status"
+  ],
   "properties": {
     "run_id": { "type": "string" },
-    "created_at": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "input_path": { "type": "string" },
     "bundle_path": { "type": "string" },
     "manifest_path": { "type": "string" },
     "manifest": { "type": "object" },
@@ -17,6 +28,7 @@
         "required": ["document_type", "filename", "source_path", "required", "present"],
         "properties": {
           "document_type": { "type": "string" },
+          "doc_type": { "type": "string" },
           "filename": { "type": "string" },
           "source_path": { "type": "string" },
           "run_path": { "type": ["string", "null"] },
@@ -25,8 +37,11 @@
         }
       }
     },
+    "presented_documents": { "type": "array" },
     "missing_documents": { "type": "array", "items": { "type": "string" } },
     "extra_files": { "type": "array", "items": { "type": "string" } },
-    "status": { "type": "string" }
+    "evidence_index": { "type": "object" },
+    "risk_flags": { "type": "array", "items": { "type": "string" } },
+    "status": { "type": "string", "enum": ["ready", "missing_documents"] }
   }
 }

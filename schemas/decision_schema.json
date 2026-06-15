@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FinalDecision",
+  "description": "Output of Agent H — the final examination decision and SWIFT message type.",
+  "type": "object",
+  "required": ["run_id", "decision"],
+  "properties": {
+    "run_id": { "type": "string" },
+    "decided_at": { "type": "string", "format": "date-time" },
+    "decision": { "type": "string", "enum": ["HONOUR", "REFUSE", "MANUAL_REVIEW"] },
+    "decision_rationale": { "type": "string" },
+    "swift_message_type": { "type": "string", "enum": ["MT752", "MT734", "MT700"] },
+    "major_discrepancy_count": { "type": "integer" },
+    "minor_discrepancy_count": { "type": "integer" },
+    "discrepancies": {
+      "type": "array",
+      "items": { "$ref": "findings_schema.json" }
+    }
+  }
+}

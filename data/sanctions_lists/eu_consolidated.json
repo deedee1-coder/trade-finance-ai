@@ -1,0 +1,11 @@
+{
+  "_comment": "EU Consolidated Sanctions List stub — replace with real EU data for production.",
+  "source": "EU Consolidated Financial Sanctions List",
+  "last_updated": "2025-06-01",
+  "entities": [
+    { "name": "Sberbank", "type": "entity", "country": "RU", "regime": "Russia" },
+    { "name": "VTB Bank", "type": "entity", "country": "RU", "regime": "Russia" },
+    { "name": "Rosneft", "type": "entity", "country": "RU", "regime": "Russia" },
+    { "name": "Islamic Revolutionary Guard Corps", "type": "entity", "country": "IR", "regime": "Iran" }
+  ]
+}

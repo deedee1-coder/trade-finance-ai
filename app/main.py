@@ -1,20 +1,25 @@
-﻿"""CLI entry point for the trade finance AI project."""
+"""Streamlit entry point for ITFDS."""
 
-from __future__ import annotations
+import streamlit as st
 
-import argparse
+st.set_page_config(
+    page_title="ITFDS - Intelligent Trade Finance",
+    page_icon="bank",
+    layout="wide",
+)
 
-from orchestrator.runner import run_pipeline
+st.title("Intelligent Trade Finance Document System")
+st.caption("Multi-agent documentary credit examination")
 
+st.markdown(
+    """
+    Use the sidebar to navigate between sections:
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the trade finance document pipeline.")
-    parser.add_argument("--bundle", required=True, help="Path to a trade document bundle folder.")
-    args = parser.parse_args()
-
-    run_dir = run_pipeline(args.bundle)
-    print(f"Run created: {run_dir}")
-
-
-if __name__ == "__main__":
-    main()
+    | Page | Purpose |
+    |------|---------|
+    | Upload | Submit a trade bundle and run the pipeline |
+    | Results | View findings, discrepancies, and the final decision |
+    | Audit | Review audit trail and metrics |
+    | SWIFT Draft | Review generated SWIFT draft text |
+    """
+)

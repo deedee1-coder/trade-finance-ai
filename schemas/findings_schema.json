@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Discrepancy",
+  "description": "Unified finding schema — used by Agent H to consolidate all discrepancies.",
+  "type": "object",
+  "required": ["id", "source", "severity", "description"],
+  "properties": {
+    "id": { "type": "string", "description": "Unique discrepancy identifier, e.g. D001" },
+    "source": { "type": "string", "enum": ["ucp", "matching", "sanctions", "intake"] },
+    "severity": { "type": "string", "enum": ["major", "minor", "info"] },
+    "description": { "type": "string" },
+    "evidence": { "type": "string" },
+    "waivable": { "type": "boolean" },
+    "recommendation": { "type": "string" }
+  }
+}
