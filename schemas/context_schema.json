@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ContextPacket",
+  "description": "Output of Agent A — L/C context and evidence index for the run.",
+  "type": "object",
+  "required": ["run_id", "lc_number", "expiry_date"],
+  "properties": {
+    "run_id": { "type": "string" },
+    "input_path": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "lc_number": { "type": "string" },
+    "lc_amount": { "type": "number" },
+    "currency": { "type": "string" },
+    "expiry_date": { "type": "string" },
+    "presentation_period_days": { "type": "integer", "default": 21 },
+    "applicant": {
+      "type": "object",
+      "properties": { "name": { "type": "string" }, "country": { "type": "string" }, "address": { "type": "string" } }
+    },
+    "beneficiary": {
+      "type": "object",
+      "properties": { "name": { "type": "string" }, "country": { "type": "string" }, "address": { "type": "string" } }
+    },
+    "issuing_bank": { "type": "string" },
+    "advising_bank": { "type": "string" },
+    "port_of_loading": { "type": "string" },
+    "port_of_discharge": { "type": "string" },
+    "goods_description": { "type": "string" },
+    "partial_shipments": { "type": "string", "enum": ["allowed", "prohibited"] },
+    "transhipment": { "type": "string", "enum": ["allowed", "prohibited"] },
+    "icc_rules": { "type": "string" },
+    "required_documents": { "type": "array", "items": { "type": "string" } },
+    "presented_documents": { "type": "array" },
+    "evidence_index": { "type": "object" },
+    "risk_flags": { "type": "array", "items": { "type": "string" } },
+    "vessel_name": { "type": "string" },
+    "vessel_flag": { "type": "string" }
+  }
+}

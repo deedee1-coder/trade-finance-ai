@@ -1,0 +1,11 @@
+{
+  "_comment": "UN Consolidated Sanctions List stub — replace with real UN data for production.",
+  "source": "UN Security Council Consolidated List",
+  "last_updated": "2025-06-01",
+  "entities": [
+    { "name": "Al-Qaida", "type": "entity", "country": null, "committee": "1267/1989/2253" },
+    { "name": "Taliban", "type": "entity", "country": "AF", "committee": "1988" },
+    { "name": "Daesh", "type": "entity", "country": null, "committee": "1267/1989/2253" },
+    { "name": "Rimini Group", "type": "entity", "country": "IR", "committee": "1737" }
+  ]
+}

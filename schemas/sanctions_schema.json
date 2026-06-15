@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SanctionsScreen",
+  "description": "Output of Agent E — OFAC/EU/UN sanctions screening results.",
+  "type": "object",
+  "required": ["run_id", "parties", "overall_status"],
+  "properties": {
+    "run_id": { "type": "string" },
+    "screened_at": { "type": "string", "format": "date-time" },
+    "overall_status": { "type": "string", "enum": ["CLEAR", "HIT", "REVIEW"] },
+    "processing_frozen": { "type": "boolean" },
+    "parties": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["party_name", "party_role", "status"],
+        "properties": {
+          "party_name": { "type": "string" },
+          "party_role": { "type": "string" },
+          "country": { "type": "string" },
+          "status": { "type": "string", "enum": ["CLEAR", "HIT", "REVIEW"] },
+          "hits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "list_name": { "type": "string" },
+                "matched_name": { "type": "string" },
+                "match_score": { "type": "number" },
+                "hit_type": { "type": "string", "enum": ["exact", "fuzzy", "country_embargo", "vessel"] },
+                "evidence": { "type": "string" }
+              }
+            }
+          },
+          "false_positive_analysis": { "type": "string" }
+        }
+      }
+    }
+  }
+}

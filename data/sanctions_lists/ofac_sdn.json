@@ -1,0 +1,12 @@
+{
+  "_comment": "OFAC SDN stub — replace with real OFAC SDN list for production.",
+  "source": "OFAC Specially Designated Nationals (SDN) List",
+  "last_updated": "2025-06-01",
+  "entities": [
+    { "name": "Mahan Air", "type": "entity", "country": "IR", "programs": ["IRAN"] },
+    { "name": "Bank Mellat", "type": "entity", "country": "IR", "programs": ["IRAN", "NPWMD"] },
+    { "name": "Cosco Shipping Tanker (Dalian) Seaman", "type": "entity", "country": "CN", "programs": ["IRAN"] },
+    { "name": "Korea Mining Development Trading Corporation", "type": "entity", "country": "KP", "programs": ["DPRK"] },
+    { "name": "Al-Shabaab", "type": "entity", "country": "SO", "programs": ["SOMALIA"] }
+  ]
+}

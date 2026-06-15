@@ -1,0 +1,35 @@
+# ITFDS Policy Pack
+# Controls thresholds, tolerances, and routing rules for the pipeline.
+# Edit these values to reconfigure system behaviour without changing code.
+
+examination:
+  # UCP 600 Art. 18c / 37: tolerance on L/C amount (%)
+  amount_tolerance_pct: 5.0
+  # UCP 600 Art. 14b: max days after transport document date to present
+  presentation_period_days: 21
+  # Require at least one original of each document (UCP 600 Art. 17)
+  require_originals: true
+
+discrepancy:
+  # Automatically refuse if any major discrepancy is found
+  major_auto_refuse: true
+  # Route to manual review if only minor discrepancies exist
+  minor_manual_review: true
+  # Minor discrepancies eligible for automatic waiver (e.g. trivial typos)
+  auto_waive_trivial_typos: false
+
+sanctions:
+  # Minimum fuzzy-match score (0–100) to flag a potential hit
+  match_threshold: 85
+  # Freeze processing immediately on any confirmed hit
+  freeze_on_hit: true
+  # Countries under full embargo — immediate freeze
+  embargoed_countries: [IR, KP, SY, CU, BY]
+  # Countries flagged for enhanced due diligence
+  high_risk_countries: [RU, VE, MM, SD, ZW]
+
+routing:
+  # Decision outcomes and their SWIFT message type
+  honour_swift_type: MT752
+  refuse_swift_type: MT734
+  manual_review_swift_type: MT752
