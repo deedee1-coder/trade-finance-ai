@@ -1,0 +1,9 @@
+{
+  "case_id": "case_003_sanctions_hit",
+  "case_name": "Sanctions Hit",
+  "expected_result": "MANUAL_REVIEW",
+  "presentation_date": "2024-12-20",
+  "scenario": "Carrying vessel is on the sanctions blacklist; all other documents are compliant.",
+  "expected_outcome": "Agent E raises a critical sanctions finding; Agent H freezes (HOLD) for compliance review.",
+  "known_issue": "vessel_name = MV Black Sea is a sanctioned vessel"
+}

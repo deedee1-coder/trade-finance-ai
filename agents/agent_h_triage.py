@@ -54,6 +54,9 @@ def run(run_folder: str | Path) -> dict[str, Any]:
     severity_counts = _count_severities(findings)
     swift_type = _swift_type(decision, policy)
 
+    documents = (_read_json(run_folder / "extracted_docs.json").get("documents", []) or [])
+    documents_processed = len(documents)
+
     final_decision = {
         "run_id": run_folder.name,
         "case_id": case_id,
@@ -81,6 +84,9 @@ def run(run_folder: str | Path) -> dict[str, Any]:
         "minor_findings": severity_counts["minor"],
         "input_artifacts_loaded": sorted(loaded_artifacts.keys()),
         "input_artifacts_missing": sorted(set(INPUT_ARTIFACTS.keys()) - set(loaded_artifacts.keys())),
+        "throughput": _throughput(context.get("created_at"), final_decision["decided_at"], documents_processed),
+        "extraction": _extraction_stats(documents),
+        "discrepancy_rates": _discrepancy_rates(len(findings), severity_counts, documents_processed),
     }
 
     _write_json(run_folder / "final_decision.json", final_decision)
@@ -226,6 +232,65 @@ def _count_severities(findings: list[dict[str, Any]]) -> dict[str, int]:
     return counts
 
 
+_LOW_CONFIDENCE_THRESHOLD = 0.75
+
+
+def _extraction_stats(documents: list[dict[str, Any]]) -> dict[str, Any]:
+    # Aggregates the per-field confidence scores Agent B records in extracted_docs.json.
+    # This is a confidence-based proxy for extraction accuracy, not a comparison against
+    # ground-truth labels (which would require a labelled fixture set).
+    confidences: list[float] = []
+    for document in documents:
+        for payload in (document.get("fields", {}) or {}).values():
+            if isinstance(payload, dict) and isinstance(payload.get("confidence"), (int, float)):
+                confidences.append(float(payload["confidence"]))
+
+    total = len(confidences)
+    return {
+        "fields_extracted": total,
+        "mean_confidence": round(sum(confidences) / total, 4) if total else None,
+        "min_confidence": round(min(confidences), 4) if total else None,
+        "low_confidence_fields": sum(1 for value in confidences if value < _LOW_CONFIDENCE_THRESHOLD),
+        "low_confidence_threshold": _LOW_CONFIDENCE_THRESHOLD,
+        "note": "Confidence-based proxy for extraction accuracy; not validated against ground-truth labels.",
+    }
+
+
+def _throughput(started_at: str | None, completed_at: str, documents_processed: int) -> dict[str, Any]:
+    elapsed_seconds: float | None = None
+    if started_at:
+        try:
+            elapsed_seconds = round(
+                (datetime.fromisoformat(completed_at) - datetime.fromisoformat(started_at)).total_seconds(), 3
+            )
+        except ValueError:
+            elapsed_seconds = None
+
+    documents_per_second = (
+        round(documents_processed / elapsed_seconds, 3) if elapsed_seconds and elapsed_seconds > 0 else None
+    )
+    return {
+        "started_at": started_at,
+        "completed_at": completed_at,
+        "elapsed_seconds": elapsed_seconds,
+        "documents_processed": documents_processed,
+        "documents_per_second": documents_per_second,
+    }
+
+
+def _discrepancy_rates(total: int, severity_counts: dict[str, int], documents_processed: int) -> dict[str, Any]:
+    def rate(count: int) -> float:
+        return round(count / total, 3) if total else 0.0
+
+    return {
+        "total_discrepancies": total,
+        "discrepancies_per_document": round(total / documents_processed, 3) if documents_processed else None,
+        "critical_rate": rate(severity_counts["critical"]),
+        "major_rate": rate(severity_counts["major"]),
+        "minor_rate": rate(severity_counts["minor"]),
+    }
+
+
 def _make_decision(findings: list[dict[str, Any]], policy: dict[str, Any]) -> tuple[str, str, str]:
     counts = _count_severities(findings)
     discrepancy_policy = policy.get("discrepancy", {})
@@ -327,6 +392,20 @@ def _render_audit_log(case_id: str, final_decision: dict[str, Any], metrics: dic
         f"- Critical: {metrics['critical_findings']}",
         f"- Major: {metrics['major_findings']}",
         f"- Minor: {metrics['minor_findings']}",
+    ])
+
+    throughput = metrics.get("throughput", {})
+    extraction = metrics.get("extraction", {})
+    rates = metrics.get("discrepancy_rates", {})
+    lines.extend([
+        "",
+        "## Metrics",
+        f"- Elapsed seconds: {throughput.get('elapsed_seconds')}",
+        f"- Documents processed: {throughput.get('documents_processed')}",
+        f"- Documents per second: {throughput.get('documents_per_second')}",
+        f"- Mean extraction confidence: {extraction.get('mean_confidence')}",
+        f"- Low-confidence fields (< {extraction.get('low_confidence_threshold')}): {extraction.get('low_confidence_fields')}",
+        f"- Discrepancies per document: {rates.get('discrepancies_per_document')}",
     ])
     return "\n".join(lines) + "\n"
 
