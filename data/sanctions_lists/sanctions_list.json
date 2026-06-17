@@ -1,0 +1,18 @@
+{
+  "sanctioned_parties": [
+    "Blacklisted Trading Ltd",
+    "Restricted Imports Corp",
+    "Sanctioned Export LLC"
+  ],
+  "sanctioned_countries": [
+    "Restrictedland",
+    "Riskland"
+  ],
+  "sanctioned_ports": [
+    "Restricted Port"
+  ],
+  "sanctioned_vessels": [
+    "MV Black Sea",
+    "Restricted Vessel"
+  ]
+}
