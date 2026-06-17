@@ -16,8 +16,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings:
-    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-    MODEL: str = os.getenv("MODEL", "claude-sonnet-4-6")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    MODEL: str = os.getenv("MODEL", "gpt-5.4-nano")
     RUN_DIR: Path = BASE_DIR / "runs"
     POLICIES_DIR: Path = BASE_DIR / "policies"
     SCHEMAS_DIR: Path = BASE_DIR / "schemas"
