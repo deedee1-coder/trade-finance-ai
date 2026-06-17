@@ -1,20 +1,24 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "FinalDecision",
-  "description": "Output of Agent H — the final examination decision and SWIFT message type.",
+  "description": "Output of Agent H: final examination decision, discrepancies, processing status, and SWIFT message type.",
   "type": "object",
-  "required": ["run_id", "decision"],
+  "required": ["run_id", "decision", "processing_status", "decision_rationale", "discrepancies"],
   "properties": {
     "run_id": { "type": "string" },
+    "case_id": { "type": "string" },
     "decided_at": { "type": "string", "format": "date-time" },
     "decision": { "type": "string", "enum": ["HONOUR", "REFUSE", "MANUAL_REVIEW"] },
+    "processing_status": { "type": "string", "enum": ["CLEAR", "HOLD", "STOPPED", "REVIEW_REQUIRED"] },
     "decision_rationale": { "type": "string" },
     "swift_message_type": { "type": "string", "enum": ["MT752", "MT734", "MT700"] },
+    "critical_discrepancy_count": { "type": "integer" },
     "major_discrepancy_count": { "type": "integer" },
     "minor_discrepancy_count": { "type": "integer" },
+    "total_discrepancy_count": { "type": "integer" },
     "discrepancies": {
       "type": "array",
-      "items": { "$ref": "findings_schema.json" }
+      "items": { "type": "object" }
     }
   }
 }
