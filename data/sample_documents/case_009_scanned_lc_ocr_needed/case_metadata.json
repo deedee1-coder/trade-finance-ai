@@ -1,0 +1,6 @@
+{
+  "case_id": "case_009_scanned_lc_ocr_needed",
+  "presentation_date": "2024-12-20",
+  "scenario": "Image-only L/C requiring OCR fallback",
+  "expected_outcome": "manual review until OCR is implemented"
+}

@@ -1,0 +1,6 @@
+{
+  "case_id": "case_006_late_presentation",
+  "presentation_date": "2025-01-20",
+  "scenario": "Presentation after 21 day rule",
+  "expected_outcome": "manual review / refuse for late presentation"
+}

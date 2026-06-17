@@ -74,6 +74,10 @@ def run(bundle_path: str | Path) -> Path:
         if path.is_file():
             extra_files.append(path.name)
 
+    case_metadata_path = bundle_path / "case_metadata.json"
+    if case_metadata_path.exists():
+        shutil.copy2(case_metadata_path, run_dir / "case_metadata.json")
+
     context_packet = {
         "run_id": run_id,
         "created_at": datetime.now(timezone.utc).isoformat(),

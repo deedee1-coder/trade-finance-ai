@@ -1,0 +1,6 @@
+{
+  "case_id": "case_007_currency_mismatch",
+  "presentation_date": "2024-12-20",
+  "scenario": "Invoice currency differs from L/C",
+  "expected_outcome": "refuse / currency mismatch"
+}
