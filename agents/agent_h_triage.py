@@ -26,6 +26,30 @@ INPUT_ARTIFACTS = {
     "sanctions": ["sanctions_screen.json", "sanctions_result.json"],
 }
 
+# Friendly names used to group findings into exception categories (by which agent raised them).
+CATEGORY_NAMES = {
+    "ucp": "UCP 600 Compliance",
+    "matching": "Cross-Document Consistency",
+    "sanctions": "Sanctions / Screening",
+    "triage": "Intake / Missing Inputs",
+}
+
+# For each decision: who the case goes to next, and what they should do (the follow-up).
+ROUTING = {
+    "HONOUR": {
+        "owner": "Settlement / Payment Desk",
+        "action": "Proceed to honour the presentation and release payment.",
+    },
+    "REFUSE": {
+        "owner": "Trade Operations - Refusal Desk",
+        "action": "Issue the refusal notice (MT734) to the presenter, listing all discrepancies.",
+    },
+    "MANUAL_REVIEW": {
+        "owner": "Compliance / Sanctions Officer",
+        "action": "Escalate for manual review; do not settle until cleared.",
+    },
+}
+
 
 # Main entry point used by the orchestrator.
 def run(run_folder: str | Path) -> dict[str, Any]:
@@ -69,6 +93,8 @@ def run(run_folder: str | Path) -> dict[str, Any]:
         "major_discrepancy_count": severity_counts["major"],
         "minor_discrepancy_count": severity_counts["minor"],
         "total_discrepancy_count": len(findings),
+        "exception_categories": _exception_categories(findings),
+        "routing": _routing_for(decision),
         "discrepancies": findings,
     }
 
@@ -291,6 +317,22 @@ def _discrepancy_rates(total: int, severity_counts: dict[str, int], documents_pr
     }
 
 
+def _exception_categories(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    # Groups the findings into named categories, each with a count and the finding IDs in it.
+    grouped: dict[str, dict[str, Any]] = {}
+    for finding in findings:
+        category = CATEGORY_NAMES.get(finding.get("source"), "Other")
+        bucket = grouped.setdefault(category, {"category": category, "count": 0, "finding_ids": []})
+        bucket["count"] += 1
+        bucket["finding_ids"].append(finding.get("finding_id"))
+    return sorted(grouped.values(), key=lambda item: item["count"], reverse=True)
+
+
+def _routing_for(decision: str) -> dict[str, str]:
+    # Says who the case goes to next and what the follow-up action is.
+    return ROUTING.get(decision, ROUTING["MANUAL_REVIEW"])
+
+
 def _make_decision(findings: list[dict[str, Any]], policy: dict[str, Any]) -> tuple[str, str, str]:
     counts = _count_severities(findings)
     discrepancy_policy = policy.get("discrepancy", {})
@@ -337,9 +379,17 @@ def _render_discrepancies(case_id: str, final_decision: dict[str, Any]) -> str:
         f"Decision: {final_decision['decision']}",
         f"Processing status: {final_decision['processing_status']}",
         f"Rationale: {final_decision['decision_rationale']}",
+        f"Routed to: {final_decision['routing']['owner']}",
+        f"Follow-up: {final_decision['routing']['action']}",
         "",
-        "## Findings",
+        "## Exception Categories",
     ]
+    if not final_decision["exception_categories"]:
+        lines.append("- None.")
+    for category in final_decision["exception_categories"]:
+        lines.append(f"- {category['category']}: {category['count']}")
+
+    lines.extend(["", "## Findings"])
     if not final_decision["discrepancies"]:
         lines.append("- No discrepancies found.")
     for finding in final_decision["discrepancies"]:
