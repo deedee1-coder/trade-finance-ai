@@ -1,0 +1,60 @@
+{
+  "case_id": "CASE-001",
+  "documents": {
+    "letter_of_credit": {
+      "lc_number": "LC-2026-001",
+      "applicant": "EuroMarket GmbH",
+      "beneficiary": "ABC Trading Ltd",
+      "currency": "USD",
+      "amount": 10000,
+      "issue_date": "2026-05-15",
+      "expiry_date": "2026-06-30",
+      "latest_shipment_date": "2026-06-10",
+      "presentation_rule_days": 21,
+      "port_of_loading": "Durres",
+      "port_of_discharge": "Hamburg",
+      "goods_description": "500 boxes of olive oil"
+    },
+
+    "commercial_invoice": {
+      "invoice_number": "INV-2026-001",
+      "invoice_date": "2026-05-28",
+      "seller": "ABC Trading Ltd",
+      "buyer": "EuroMarket GmbH",
+      "currency": "USD",
+      "amount": 10000,
+      "goods_description": "500 boxes of olive oil",
+      "quantity": "500 boxes",
+      "country_of_origin": "Albania"
+    },
+
+    "bill_of_lading": {
+      "bl_number": "BL-2026-001",
+      "shipper": "ABC Trading Ltd",
+      "consignee": "EuroMarket GmbH",
+      "vessel_name": "MV Adriatic Star",
+      "vessel_flag_state": "Albania",
+      "port_of_loading": "Durres",
+      "port_of_discharge": "Hamburg",
+      "shipment_date": "2026-06-01",
+      "goods_description": "500 boxes of olive oil"
+    },
+
+    "packing_list": {
+      "packing_list_number": "PL-2026-001",
+      "goods_description": "500 boxes of olive oil",
+      "quantity": "500 boxes",
+      "number_of_packages": "50 pallets",
+      "gross_weight": "6000 kg",
+      "net_weight": "5500 kg"
+    },
+
+    "certificate_of_origin": {
+      "certificate_number": "COO-2026-001",
+      "exporter": "ABC Trading Ltd",
+      "importer": "EuroMarket GmbH",
+      "country_of_origin": "Albania",
+      "goods_description": "500 boxes of olive oil"
+    }
+  }
+}
