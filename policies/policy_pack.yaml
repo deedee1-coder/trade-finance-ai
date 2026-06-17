@@ -33,3 +33,13 @@ routing:
   honour_swift_type: MT752
   refuse_swift_type: MT734
   manual_review_swift_type: MT752
+
+severity:
+  amount_mismatch: major
+  currency_mismatch: major
+  party_mismatch: major
+  late_presentation: major
+  late_shipment: major
+  missing_document: major
+  sanctions_hit: critical
+  low_confidence: minor
