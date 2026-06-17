@@ -1,4 +1,4 @@
-anthropic
+openai
 python-dotenv
 pydantic
 pyyaml
@@ -8,3 +8,4 @@ pytest
 pdfplumber
 Pillow
 rapidfuzz
+reportlab

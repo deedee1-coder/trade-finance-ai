@@ -1,27 +1,29 @@
 import json
 import re
-import anthropic
+import openai
 from core.config import settings
 
-_client: anthropic.Anthropic | None = None
+_client: openai.OpenAI | None = None
 
 
-def get_client() -> anthropic.Anthropic:
+def get_client() -> openai.OpenAI:
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        _client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
     return _client
 
 
 def call_claude(system: str, user: str, max_tokens: int | None = None) -> str:
     client = get_client()
-    response = client.messages.create(
+    response = client.chat.completions.create(
         model=settings.MODEL,
         max_tokens=max_tokens or settings.MAX_TOKENS,
-        system=system,
-        messages=[{"role": "user", "content": user}],
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
     )
-    return response.content[0].text
+    return response.choices[0].message.content
 
 
 def parse_json_response(text: str) -> dict:
