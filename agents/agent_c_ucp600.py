@@ -13,10 +13,6 @@ REQUIRED_DOCUMENTS = [
 
 
 def read_json_file(file_path: Path) -> dict[str, Any]:
-    """
-    Safely read a JSON file.
-    If the file does not exist or is invalid, return an empty dictionary.
-    """
     if not file_path.exists():
         return {}
 
@@ -28,9 +24,6 @@ def read_json_file(file_path: Path) -> dict[str, Any]:
 
 
 def write_json_file(file_path: Path, data: dict[str, Any]) -> None:
-    """
-    Write dictionary data to a JSON file.
-    """
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     with file_path.open("w", encoding="utf-8") as file:
@@ -38,10 +31,6 @@ def write_json_file(file_path: Path, data: dict[str, Any]) -> None:
 
 
 def parse_date(date_value: str | None) -> datetime | None:
-    """
-    Convert YYYY-MM-DD string into a datetime object.
-    Returns None if the value is missing or invalid.
-    """
     if not date_value:
         return None
 
@@ -52,18 +41,7 @@ def parse_date(date_value: str | None) -> datetime | None:
 
 
 def get_present_document_types(context: dict[str, Any]) -> list[str]:
-    """
-    Extract document types from context.json.
-
-    Supports formats like:
-    {
-      "documents": [
-        {"document_type": "commercial_invoice"}
-      ]
-    }
-    """
     documents = context.get("documents", [])
-
     present_document_types = []
 
     for document in documents:
@@ -75,45 +53,40 @@ def get_present_document_types(context: dict[str, Any]) -> list[str]:
     return present_document_types
 
 
-def build_check(
-    rule_id: str,
-    rule_name: str,
-    result: str,
+def build_finding(
+    finding_id: str,
+    check_id: str,
     severity: str,
-    description: str,
-) -> dict[str, str]:
-    """
-    Standard structure for one UCP compliance check.
-    """
+    status: str,
+    document: str,
+    field: str,
+    expected_value: Any,
+    actual_value: Any,
+    explanation: str,
+    policy_reference: str,
+) -> dict[str, Any]:
     return {
-        "rule_id": rule_id,
-        "rule_name": rule_name,
-        "result": result,
+        "finding_id": finding_id,
+        "agent_name": "Agent C - UCP Compliance",
+        "check_id": check_id,
         "severity": severity,
-        "description": description,
+        "status": status,
+        "document": document,
+        "field": field,
+        "expected_value": expected_value,
+        "actual_value": actual_value,
+        "explanation": explanation,
+        "evidence": [],
+        "policy_reference": policy_reference,
     }
 
 
-def build_discrepancy(
-    discrepancy_type: str,
-    severity: str,
-    description: str,
-) -> dict[str, str]:
-    """
-    Standard structure for one discrepancy/finding.
-    """
-    return {
-        "type": discrepancy_type,
-        "severity": severity,
-        "description": description,
-    }
+def check_required_documents(
+    case_id: str,
+    context: dict[str, Any],
+) -> list[dict[str, Any]]:
+    findings = []
 
-
-def check_required_documents(context: dict[str, Any]) -> tuple[dict[str, str], list[dict[str, str]]]:
-    """
-    Check 1:
-    Verify all required LC documents are present.
-    """
     present_documents = get_present_document_types(context)
 
     missing_documents = [
@@ -122,209 +95,190 @@ def check_required_documents(context: dict[str, Any]) -> tuple[dict[str, str], l
         if required_document not in present_documents
     ]
 
-    if not missing_documents:
-        check = build_check(
-            rule_id="UCP-001",
-            rule_name="Required Documents Check",
-            result="pass",
-            severity="none",
-            description="All required documents are present.",
+    for index, missing_document in enumerate(missing_documents, start=1):
+        findings.append(
+            build_finding(
+                finding_id=f"C-{case_id}-REQDOC-{index:03}",
+                check_id="UCP-001",
+                severity="major",
+                status="fail",
+                document=missing_document,
+                field="document_presence",
+                expected_value="present",
+                actual_value="missing",
+                explanation=f"Required document '{missing_document}' is missing from the document bundle.",
+                policy_reference="UCP600_REQUIRED_DOCUMENTS",
+            )
         )
 
-        return check, []
-
-    description = (
-        "Missing required document(s): "
-        + ", ".join(missing_documents)
-        + "."
-    )
-
-    check = build_check(
-        rule_id="UCP-001",
-        rule_name="Required Documents Check",
-        result="fail",
-        severity="high",
-        description=description,
-    )
-
-    discrepancies = [
-        build_discrepancy(
-            discrepancy_type="missing_required_document",
-            severity="high",
-            description=description,
-        )
-    ]
-
-    return check, discrepancies
+    return findings
 
 
 def check_latest_shipment_date(
-    extracted_fields: dict[str, Any]
-) -> tuple[dict[str, str], list[dict[str, str]], list[str]]:
-    """
-    Check 2:
-    Verify shipment_date <= latest_shipment_date.
-    """
-    errors = []
+    case_id: str,
+    extracted_fields: dict[str, Any],
+) -> list[dict[str, Any]]:
+    findings = []
 
     shipment_date = parse_date(extracted_fields.get("shipment_date"))
     latest_shipment_date = parse_date(extracted_fields.get("latest_shipment_date"))
 
     if shipment_date is None:
-        errors.append("Missing or invalid shipment_date.")
+        findings.append(
+            build_finding(
+                finding_id=f"C-{case_id}-SHIP-001",
+                check_id="UCP-002",
+                severity="minor",
+                status="error",
+                document="transport_document",
+                field="shipment_date",
+                expected_value="valid YYYY-MM-DD shipment date",
+                actual_value=extracted_fields.get("shipment_date"),
+                explanation="Shipment date is missing or invalid, so the latest shipment date check could not be completed.",
+                policy_reference="UCP600_LATEST_SHIPMENT_DATE",
+            )
+        )
+
     if latest_shipment_date is None:
-        errors.append("Missing or invalid latest_shipment_date.")
-
-    if errors:
-        check = build_check(
-            rule_id="UCP-002",
-            rule_name="Latest Shipment Date Check",
-            result="error",
-            severity="medium",
-            description="Could not complete latest shipment date check.",
+        findings.append(
+            build_finding(
+                finding_id=f"C-{case_id}-SHIP-002",
+                check_id="UCP-002",
+                severity="minor",
+                status="error",
+                document="letter_of_credit",
+                field="latest_shipment_date",
+                expected_value="valid YYYY-MM-DD latest shipment date",
+                actual_value=extracted_fields.get("latest_shipment_date"),
+                explanation="Latest shipment date is missing or invalid, so the latest shipment date check could not be completed.",
+                policy_reference="UCP600_LATEST_SHIPMENT_DATE",
+            )
         )
-        return check, [], errors
 
-    if shipment_date <= latest_shipment_date:
-        check = build_check(
-            rule_id="UCP-002",
-            rule_name="Latest Shipment Date Check",
-            result="pass",
-            severity="none",
-            description="Shipment date is within the latest shipment date allowed by the Letter of Credit.",
+    if shipment_date is None or latest_shipment_date is None:
+        return findings
+
+    if shipment_date > latest_shipment_date:
+        findings.append(
+            build_finding(
+                finding_id=f"C-{case_id}-SHIP-003",
+                check_id="UCP-002",
+                severity="major",
+                status="fail",
+                document="transport_document",
+                field="shipment_date",
+                expected_value=str(latest_shipment_date.date()),
+                actual_value=str(shipment_date.date()),
+                explanation=(
+                    f"Shipment date {shipment_date.date()} is after the latest shipment date "
+                    f"{latest_shipment_date.date()} allowed by the Letter of Credit."
+                ),
+                policy_reference="UCP600_LATEST_SHIPMENT_DATE",
+            )
         )
-        return check, [], []
 
-    description = (
-        f"Shipment date {shipment_date.date()} is after latest shipment date "
-        f"{latest_shipment_date.date()}."
-    )
-
-    check = build_check(
-        rule_id="UCP-002",
-        rule_name="Latest Shipment Date Check",
-        result="fail",
-        severity="high",
-        description=description,
-    )
-
-    discrepancies = [
-        build_discrepancy(
-            discrepancy_type="late_shipment",
-            severity="high",
-            description=description,
-        )
-    ]
-
-    return check, discrepancies, []
+    return findings
 
 
 def check_presentation_period(
+    case_id: str,
     extracted_fields: dict[str, Any],
     case_metadata: dict[str, Any],
-) -> tuple[dict[str, str], list[dict[str, str]], list[str]]:
-    """
-    Check 3:
-    Verify presentation_date - shipment_date <= presentation_rule_days.
-    """
-    errors = []
+) -> list[dict[str, Any]]:
+    findings = []
 
     shipment_date = parse_date(extracted_fields.get("shipment_date"))
     presentation_date = parse_date(case_metadata.get("presentation_date"))
-
     presentation_rule_days = extracted_fields.get("presentation_rule_days")
 
     if shipment_date is None:
-        errors.append("Missing or invalid shipment_date.")
+        findings.append(
+            build_finding(
+                finding_id=f"C-{case_id}-PRES-001",
+                check_id="UCP-003",
+                severity="minor",
+                status="error",
+                document="transport_document",
+                field="shipment_date",
+                expected_value="valid YYYY-MM-DD shipment date",
+                actual_value=extracted_fields.get("shipment_date"),
+                explanation="Shipment date is missing or invalid, so the presentation period check could not be completed.",
+                policy_reference="UCP600_PRESENTATION_PERIOD",
+            )
+        )
+
     if presentation_date is None:
-        errors.append("Missing or invalid presentation_date.")
-    if presentation_rule_days is None:
-        errors.append("Missing presentation_rule_days.")
+        findings.append(
+            build_finding(
+                finding_id=f"C-{case_id}-PRES-002",
+                check_id="UCP-003",
+                severity="minor",
+                status="error",
+                document="case_metadata",
+                field="presentation_date",
+                expected_value="valid YYYY-MM-DD presentation date",
+                actual_value=case_metadata.get("presentation_date"),
+                explanation="Presentation date is missing or invalid, so the presentation period check could not be completed.",
+                policy_reference="UCP600_PRESENTATION_PERIOD",
+            )
+        )
 
     try:
         presentation_rule_days = int(presentation_rule_days)
     except (TypeError, ValueError):
-        errors.append("Invalid presentation_rule_days.")
-
-    if errors:
-        check = build_check(
-            rule_id="UCP-003",
-            rule_name="Presentation Period Check",
-            result="error",
-            severity="medium",
-            description="Could not complete presentation period check.",
+        findings.append(
+            build_finding(
+                finding_id=f"C-{case_id}-PRES-003",
+                check_id="UCP-003",
+                severity="minor",
+                status="error",
+                document="letter_of_credit",
+                field="presentation_rule_days",
+                expected_value="integer number of allowed presentation days",
+                actual_value=extracted_fields.get("presentation_rule_days"),
+                explanation="Presentation rule days is missing or invalid, so the presentation period check could not be completed.",
+                policy_reference="UCP600_PRESENTATION_PERIOD",
+            )
         )
-        return check, [], errors
+        return findings
+
+    if shipment_date is None or presentation_date is None:
+        return findings
 
     days_after_shipment = (presentation_date - shipment_date).days
 
-    if days_after_shipment <= presentation_rule_days:
-        check = build_check(
-            rule_id="UCP-003",
-            rule_name="Presentation Period Check",
-            result="pass",
-            severity="none",
-            description=(
-                f"Documents were presented within {presentation_rule_days} days "
-                "after shipment date."
-            ),
+    if days_after_shipment > presentation_rule_days:
+        findings.append(
+            build_finding(
+                finding_id=f"C-{case_id}-PRES-004",
+                check_id="UCP-003",
+                severity="major",
+                status="fail",
+                document="case_metadata",
+                field="presentation_date",
+                expected_value=f"within {presentation_rule_days} days after shipment",
+                actual_value=f"{days_after_shipment} days after shipment",
+                explanation=(
+                    f"Presentation is {days_after_shipment} days after shipment, "
+                    f"exceeding the allowed {presentation_rule_days}-day rule."
+                ),
+                policy_reference="UCP600_PRESENTATION_PERIOD",
+            )
         )
-        return check, [], []
 
-    description = (
-        f"Presentation is {days_after_shipment} days after shipment, "
-        f"exceeding the allowed {presentation_rule_days}-day rule."
-    )
-
-    check = build_check(
-        rule_id="UCP-003",
-        rule_name="Presentation Period Check",
-        result="fail",
-        severity="high",
-        description=description,
-    )
-
-    discrepancies = [
-        build_discrepancy(
-            discrepancy_type="late_presentation",
-            severity="high",
-            description=description,
-        )
-    ]
-
-    return check, discrepancies, []
+    return findings
 
 
 def find_extracted_fields_file(run_folder: Path) -> Path:
-    """
-    Primary location:
-      runs/run_001/extracted_fields.json
-
-    Fallback location:
-      data/sample_documents/case_001_clean/extracted_fields.json
-    """
     primary_path = run_folder / "extracted_fields.json"
 
     if primary_path.exists():
         return primary_path
 
-    fallback_path = Path("data") / "sample_documents" / "case_001_clean" / "extracted_fields.json"
-
-    return fallback_path
+    return Path("data") / "sample_documents" / "case_001_clean" / "extracted_fields.json"
 
 
 def run(run_folder: str | Path) -> dict[str, Any]:
-    """
-    Main entry point for Agent C.
-
-    Reads:
-      - context.json
-      - extracted_fields.json
-      - case_metadata.json
-
-    Writes:
-      - ucp_result.json
-    """
     run_folder = Path(run_folder)
 
     context_path = run_folder / "context.json"
@@ -338,53 +292,67 @@ def run(run_folder: str | Path) -> dict[str, Any]:
     case_id = (
         case_metadata.get("case_id")
         or context.get("case_id")
+        or extracted_fields.get("case_id")
         or run_folder.name
     )
 
-    checks = []
-    discrepancies = []
-    errors = []
+    findings = []
 
     if not context:
-        errors.append(f"context.json missing or invalid at: {context_path}")
+        findings.append(
+            build_finding(
+                finding_id=f"C-{case_id}-INPUT-001",
+                check_id="INPUT-001",
+                severity="minor",
+                status="error",
+                document="context.json",
+                field="file",
+                expected_value="valid context.json",
+                actual_value="missing_or_invalid",
+                explanation=f"context.json is missing or invalid at: {context_path}",
+                policy_reference="INPUT_VALIDATION",
+            )
+        )
 
     if not extracted_fields:
-        errors.append(f"extracted_fields.json missing or invalid at: {extracted_fields_path}")
+        findings.append(
+            build_finding(
+                finding_id=f"C-{case_id}-INPUT-002",
+                check_id="INPUT-002",
+                severity="minor",
+                status="error",
+                document="extracted_fields.json",
+                field="file",
+                expected_value="valid extracted_fields.json",
+                actual_value="missing_or_invalid",
+                explanation=f"extracted_fields.json is missing or invalid at: {extracted_fields_path}",
+                policy_reference="INPUT_VALIDATION",
+            )
+        )
 
     if not case_metadata:
-        errors.append(f"case_metadata.json missing or invalid at: {case_metadata_path}")
+        findings.append(
+            build_finding(
+                finding_id=f"C-{case_id}-INPUT-003",
+                check_id="INPUT-003",
+                severity="minor",
+                status="error",
+                document="case_metadata.json",
+                field="file",
+                expected_value="valid case_metadata.json",
+                actual_value="missing_or_invalid",
+                explanation=f"case_metadata.json is missing or invalid at: {case_metadata_path}",
+                policy_reference="INPUT_VALIDATION",
+            )
+        )
 
-    required_documents_check, required_documents_discrepancies = check_required_documents(context)
-    checks.append(required_documents_check)
-    discrepancies.extend(required_documents_discrepancies)
-
-    shipment_check, shipment_discrepancies, shipment_errors = check_latest_shipment_date(
-        extracted_fields
-    )
-    checks.append(shipment_check)
-    discrepancies.extend(shipment_discrepancies)
-    errors.extend(shipment_errors)
-
-    presentation_check, presentation_discrepancies, presentation_errors = check_presentation_period(
-        extracted_fields,
-        case_metadata,
-    )
-    checks.append(presentation_check)
-    discrepancies.extend(presentation_discrepancies)
-    errors.extend(presentation_errors)
-
-    status = "success"
-
-    if errors:
-        status = "completed_with_errors"
+    findings.extend(check_required_documents(case_id, context))
+    findings.extend(check_latest_shipment_date(case_id, extracted_fields))
+    findings.extend(check_presentation_period(case_id, extracted_fields, case_metadata))
 
     result = {
         "case_id": case_id,
-        "agent_name": "Agent C - UCP Compliance",
-        "status": status,
-        "checks": checks,
-        "discrepancies": discrepancies,
-        "errors": errors,
+        "findings": findings,
     }
 
     output_path = run_folder / "ucp_result.json"
@@ -392,6 +360,7 @@ def run(run_folder: str | Path) -> dict[str, Any]:
 
     print("Agent C completed")
     print(f"ucp_result.json created at: {output_path}")
+    print(f"Findings created: {len(findings)}")
 
     return result
 
@@ -403,5 +372,4 @@ if __name__ == "__main__":
     print("Summary")
     print("-" * 40)
     print("Case:", result["case_id"])
-    print("Status:", result["status"])
-    print("Discrepancies:", len(result["discrepancies"]))
+    print("Findings:", len(result["findings"]))
