@@ -17,7 +17,7 @@ def call_claude(system: str, user: str, max_tokens: int | None = None) -> str:
     client = get_client()
     response = client.chat.completions.create(
         model=settings.MODEL,
-        max_tokens=max_tokens or settings.MAX_TOKENS,
+        max_completion_tokens=max_tokens or settings.MAX_TOKENS,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
