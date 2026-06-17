@@ -1,0 +1,6 @@
+{
+  "case_id": "case_005_late_shipment",
+  "presentation_date": "2024-12-20",
+  "scenario": "Shipment after latest shipment date",
+  "expected_outcome": "refuse / major discrepancy"
+}

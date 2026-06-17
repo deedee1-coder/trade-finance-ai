@@ -1,0 +1,6 @@
+{
+  "case_id": "case_010_expired_lc",
+  "presentation_date": "2025-01-10",
+  "scenario": "Documents presented after L/C expiry",
+  "expected_outcome": "refuse / expired credit"
+}

@@ -13,23 +13,33 @@ if str(PROJECT_ROOT) not in sys.path:
 from orchestrator.pipeline import run_pipeline
 
 
-CASES = {
+CASE_DESCRIPTIONS = {
     "case_001_clean": "Clean presentation - expect ready intake or honour once all agents are complete",
     "case_002_invoice_mismatch": "Invoice mismatch sample - expect refusal or manual review",
     "case_003_sanctions_hit": "Sanctions hit sample - expect hold/manual review",
 }
 
 
+def _available_cases() -> dict[str, str]:
+    sample_root = PROJECT_ROOT / "data" / "sample_documents"
+    cases = {}
+    for path in sorted(sample_root.iterdir()):
+        if path.is_dir() and (path / "manifest.yaml").exists():
+            cases[path.name] = CASE_DESCRIPTIONS.get(path.name, "Sample trade bundle")
+    return cases
+
+
 if __name__ == "__main__":
+    cases = _available_cases()
     case = sys.argv[1] if len(sys.argv) > 1 else "case_001_clean"
-    if case not in CASES:
-        print(f"Unknown case '{case}'. Choose from: {list(CASES.keys())}")
+    if case not in cases:
+        print(f"Unknown case '{case}'. Choose from: {list(cases.keys())}")
         sys.exit(1)
 
     bundle_path = PROJECT_ROOT / "data" / "sample_documents" / case
     run_dir = run_pipeline(bundle_path)
     print(f"Running demo for: {case}")
-    print(f"Expected outcome: {CASES[case]}")
+    print(f"Expected outcome: {cases[case]}")
     print(f"Run created: {run_dir}")
 
     final_decision_path = run_dir / "final_decision.json"

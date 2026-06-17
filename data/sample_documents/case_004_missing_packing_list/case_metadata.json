@@ -1,0 +1,6 @@
+{
+  "case_id": "case_004_missing_packing_list",
+  "presentation_date": "2024-12-20",
+  "scenario": "Missing required packing list",
+  "expected_outcome": "manual review / refuse for missing document"
+}

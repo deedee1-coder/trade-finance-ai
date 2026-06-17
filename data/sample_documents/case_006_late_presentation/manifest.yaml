@@ -1,0 +1,13 @@
+case_id: case_006_late_presentation
+required_documents:
+- letter_of_credit.pdf
+- commercial_invoice.pdf
+- bill_of_lading.pdf
+- packing_list.pdf
+- certificate_of_origin.pdf
+documents:
+  letter_of_credit: letter_of_credit.pdf
+  commercial_invoice: commercial_invoice.pdf
+  bill_of_lading: bill_of_lading.pdf
+  packing_list: packing_list.pdf
+  certificate_of_origin: certificate_of_origin.pdf

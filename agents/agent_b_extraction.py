@@ -209,12 +209,12 @@ def _extract_document(pdf_path: Path, doc_type: str) -> ExtractedDocument:
     for field_name, raw_val in raw_fields.items():
         if not isinstance(raw_val, dict):
             continue
-        raw_conf = float(raw_val.get("confidence", 0.0))
+        raw_conf = _safe_float(raw_val.get("confidence"), default=0.0)
         adjusted_conf = round(min(raw_conf * text_quality, 1.0), 3)
         fields[field_name] = ExtractedField(
             value=raw_val.get("value"),
             confidence=adjusted_conf,
-            page=int(raw_val.get("page", 1)),
+            page=_safe_page(raw_val.get("page")),
         )
 
     low_confidence = [
@@ -244,6 +244,25 @@ def _extract_document(pdf_path: Path, doc_type: str) -> ExtractedDocument:
         low_confidence_fields=low_confidence,
         raw_text_snippet=snippet,
     )
+
+
+def _safe_float(value: object, default: float = 0.0) -> float:
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_page(value: object) -> int:
+    try:
+        if value is None:
+            return 1
+        page = int(value)
+        return page if page > 0 else 1
+    except (TypeError, ValueError):
+        return 1
 
 
 def _load_context(run_dir: Path) -> dict | None:

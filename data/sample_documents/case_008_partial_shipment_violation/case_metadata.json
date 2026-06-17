@@ -1,0 +1,6 @@
+{
+  "case_id": "case_008_partial_shipment_violation",
+  "presentation_date": "2024-12-20",
+  "scenario": "Partial shipment shown despite prohibition",
+  "expected_outcome": "manual review / potential refusal"
+}

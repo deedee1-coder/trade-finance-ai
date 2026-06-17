@@ -126,6 +126,9 @@ def get_present_document_types(context: dict[str, Any]) -> list[str]:
 
     for document in documents:
         if isinstance(document, dict):
+            if document.get("present") is False:
+                continue
+
             document_type = document.get("document_type")
 
             if document_type:

@@ -123,10 +123,21 @@ def _apply_field_aliases(extracted: dict[str, Any]) -> None:
 
     _copy_alias(coo, "exporter_name", "exporter")
 
+    _copy_top_level_alias(extracted, "letter_of_credit", "latest_shipment_date")
+    _copy_top_level_alias(extracted, "letter_of_credit", "presentation_rule_days")
+    _copy_top_level_alias(extracted, "letter_of_credit", "presentation_period_days")
+    _copy_top_level_alias(extracted, "bill_of_lading", "shipment_date")
+
 
 def _copy_alias(payload: dict[str, Any], source: str, target: str) -> None:
     if source in payload and target not in payload:
         payload[target] = payload[source]
+
+
+def _copy_top_level_alias(extracted: dict[str, Any], document_type: str, field_name: str) -> None:
+    document = extracted.get(document_type, {})
+    if isinstance(document, dict) and field_name in document and field_name not in extracted:
+        extracted[field_name] = document[field_name]
 
 
 def _read_json(path: Path) -> dict[str, Any]:
