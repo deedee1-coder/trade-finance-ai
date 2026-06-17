@@ -6,9 +6,8 @@ from pathlib import Path
 try:
     from dotenv import load_dotenv
 except ImportError:
-    def load_dotenv() -> None:
-        # Keeps local scripts usable before dependencies are installed.
-        return None
+    def load_dotenv() -> bool:
+        return False
 
 load_dotenv()
 

@@ -2,9 +2,9 @@
 conftest.py - Shared pytest fixtures
 
 Provides reusable fixtures for all agent and pipeline tests:
-  - sample_input_path: path to case_001_clean (clean, all-compliant bundle)
-  - run_dir: temporary run directory (auto-cleaned after test)
-  - mock_context: a pre-built ContextPacket for unit tests that skip Agent A
+    - sample_input_path: path to case_001_clean (clean, all-compliant bundle)
+    - run_dir: temporary run directory (auto-cleaned after test)
+    - mock_context: a pre-built ContextPacket for unit tests that skip Agent A
 """
 import pytest
 from pathlib import Path

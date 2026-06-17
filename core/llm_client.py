@@ -23,7 +23,9 @@ def call_claude(system: str, user: str, max_tokens: int | None = None) -> str:
             {"role": "user", "content": user},
         ],
     )
-    return response.choices[0].message.content
+    content = response.choices[0].message.content
+
+    return content or ""
 
 
 def parse_json_response(text: str) -> dict:
