@@ -10,6 +10,7 @@ from pathlib import Path
 import yaml
 
 from core.config import settings
+from core.pdf_utils import extract_pages, classify_by_filename
 
 
 DEFAULT_REQUIRED_DOCUMENTS = [
@@ -19,6 +20,33 @@ DEFAULT_REQUIRED_DOCUMENTS = [
     "packing_list.pdf",
     "certificate_of_origin.pdf",
 ]
+
+# Labels we look for in the Letter of Credit, mapped to the short name we store them under.
+# The L/C is written as "Label: value" lines, so we just match the label and keep the value.
+LC_TERM_LABELS = {
+    "l/c number": "lc_number",
+    "lc number": "lc_number",
+    "credit number": "lc_number",
+    "currency": "currency",
+    "amount": "amount",
+    "expiry date": "expiry_date",
+    "date and place of expiry": "expiry_date",
+    "latest shipment date": "latest_shipment_date",
+    "applicant": "applicant",
+    "beneficiary": "beneficiary",
+    "issuing bank": "issuing_bank",
+    "advising bank": "advising_bank",
+    "port of loading": "port_of_loading",
+    "port of discharge": "port_of_discharge",
+    "goods description": "goods_description",
+    "partial shipments": "partial_shipments",
+    "transhipment": "transhipment",
+    "icc rules": "icc_rules",
+    "presentation period": "presentation_period",
+}
+
+# Places we treat as higher risk. Kept short and obvious on purpose.
+HIGH_RISK_PLACES = ["iran", "north korea", "syria", "russia", "crimea", "restrictedland", "riskland"]
 
 
 def run(bundle_path: str | Path) -> Path:
@@ -78,6 +106,21 @@ def run(bundle_path: str | Path) -> Path:
     if case_metadata_path.exists():
         shutil.copy2(case_metadata_path, run_dir / "case_metadata.json")
 
+    # Read the Letter of Credit to capture the key deal terms and remember where each came from.
+    lc_terms: dict = {}
+    evidence_index: dict = {}
+    lc_text = ""
+    lc_document = next(
+        (doc for doc in documents if doc["doc_type"] == "letter_of_credit" and doc["present"]),
+        None,
+    )
+    if lc_document is not None:
+        lc_pages = extract_pages(Path(lc_document["run_path"]))
+        lc_text = "\n".join(page["text"] for page in lc_pages)
+        lc_terms, evidence_index = _read_lc_terms(lc_pages, lc_document["filename"])
+
+    risk_flags = _detect_risks(lc_text, missing_documents, extra_files)
+
     context_packet = {
         "run_id": run_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -90,8 +133,9 @@ def run(bundle_path: str | Path) -> Path:
         "presented_documents": [doc for doc in documents if doc["present"]],
         "missing_documents": missing_documents,
         "extra_files": extra_files,
-        "evidence_index": {},
-        "risk_flags": [],
+        "lc_terms": lc_terms,
+        "evidence_index": evidence_index,
+        "risk_flags": risk_flags,
         "status": "ready" if not missing_documents else "missing_documents",
     }
 
@@ -113,11 +157,53 @@ def _next_run_id() -> str:
 
 
 def _document_type_for(filename: str, manifest_documents: dict) -> str:
-    # Finds the logical document type from the manifest.
+    # First trust the manifest's type for this filename; otherwise guess from the filename.
     for document_type, manifest_filename in manifest_documents.items():
         if manifest_filename == filename:
             return document_type
-    return Path(filename).stem
+    return classify_by_filename(filename)
+
+
+def _read_lc_terms(lc_pages: list[dict], lc_filename: str) -> tuple[dict, dict]:
+    # Reads the Letter of Credit line by line and copies the key terms into a dictionary.
+    # For every term, also records which document and page it came from (the evidence index).
+    # Handles both "Label: value" and "Label value" (table) layouts by matching the label
+    # as the start of the line. Longest labels are tried first so specific ones win.
+    labels = sorted(LC_TERM_LABELS.items(), key=lambda kv: len(kv[0]), reverse=True)
+    terms: dict = {}
+    evidence: dict = {}
+    for page in lc_pages:
+        page_number = page["page"]
+        for line in page["text"].splitlines():
+            stripped = line.strip()
+            lowered = stripped.lower()
+            for label, key in labels:
+                if key not in terms and lowered.startswith(label):
+                    value = stripped[len(label):].lstrip(" :\t-").strip()
+                    if value:
+                        terms[key] = value
+                        evidence[key] = {"document": lc_filename, "page": page_number}
+                    break
+    return terms, evidence
+
+
+def _detect_risks(lc_text: str, missing_documents: list, extra_files: list) -> list:
+    # A few simple, easy-to-explain checks that flag anything worth a closer look.
+    flags = []
+    for filename in missing_documents:
+        flags.append(f"Missing required document: {filename}")
+
+    lowered = lc_text.lower()
+    for place in HIGH_RISK_PLACES:
+        if place in lowered:
+            flags.append(f"High-risk jurisdiction mentioned in Letter of Credit: {place.title()}")
+
+    # Only an unexpected PDF counts as an "unusual document"; JSON sidecars are ignored.
+    for filename in extra_files:
+        if filename.lower().endswith(".pdf"):
+            flags.append(f"Unexpected extra document in bundle: {filename}")
+
+    return flags
 
 
 def _write_json(path: Path, data: dict) -> None:
@@ -141,4 +227,14 @@ def _audit_log(context_packet: dict) -> str:
     for document in context_packet["documents"]:
         marker = "present" if document["present"] else "missing"
         lines.append(f"- {document['filename']}: {marker}")
+
+    lines.extend([
+        "",
+        "## Context",
+        f"- L/C terms captured: {len(context_packet['lc_terms'])}",
+        f"- Evidence index entries: {len(context_packet['evidence_index'])}",
+        f"- Risk flags: {len(context_packet['risk_flags'])}",
+    ])
+    for flag in context_packet["risk_flags"]:
+        lines.append(f"  - {flag}")
     return "\n".join(lines) + "\n"
