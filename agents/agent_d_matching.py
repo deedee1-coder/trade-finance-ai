@@ -2,9 +2,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from core.config import settings
+import yaml
+from rapidfuzz import fuzz
 
-_DEFAULT_AMOUNT_TOLERANCE_PCT = 5.0
+# Names this similar (0-100) are treated as the same party (handles spelling/format variations).
+NAME_MATCH_THRESHOLD = 85
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -23,15 +25,6 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
 
     with open(path, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=2)
-
-
-def read_policy(policy_path: Path) -> dict[str, Any]:
-    try:
-        import yaml
-        with policy_path.open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
-    except Exception:
-        return {}
 
 
 def normalize_text(value: Any) -> str:
@@ -98,10 +91,6 @@ def run(run_folder: str | Path) -> dict[str, Any]:
     extracted_path = run_folder / "extracted_fields.json"
 
     extracted = read_json(extracted_path)
-    policy = read_policy(settings.POLICIES_DIR / "policy_pack.yaml")
-    amount_tolerance_pct = float(
-        (policy.get("examination") or {}).get("amount_tolerance_pct", _DEFAULT_AMOUNT_TOLERANCE_PCT)
-    )
     case_id = extracted.get("case_id", "UNKNOWN")
 
     findings = []
@@ -167,9 +156,11 @@ def run(run_folder: str | Path) -> dict[str, Any]:
             lc_amount_float = float(lc_amount)
             invoice_amount_float = float(invoice_amount)
 
-            if lc_amount_float != invoice_amount_float:
-                difference = invoice_amount_float - lc_amount_float
+            difference = invoice_amount_float - lc_amount_float
+            tolerance_pct = amount_tolerance_pct()
+            percent_diff = abs(difference) / lc_amount_float * 100 if lc_amount_float else 100.0
 
+            if percent_diff > tolerance_pct:
                 findings.append(
                     build_finding(
                         finding_id=f"D-{case_id}-002",
@@ -182,7 +173,8 @@ def run(run_folder: str | Path) -> dict[str, Any]:
                         actual_value=invoice_amount,
                         explanation=(
                             "Commercial invoice amount does not match the Letter of Credit amount. "
-                            f"Difference: USD {difference:.0f}."
+                            f"Difference: USD {difference:.0f} ({percent_diff:.2f}%), "
+                            f"exceeding the allowed {tolerance_pct:.1f}% tolerance."
                         ),
                         policy_reference="CROSS_DOCUMENT_AMOUNT_MATCH",
                     )
