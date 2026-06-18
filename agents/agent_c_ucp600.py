@@ -1,82 +1,50 @@
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from core.config import settings
 
+from core.config import settings
 
-AGENT_NAME = "Agent C - UCP Compliance"
+from rapidfuzz import fuzz, process
 
-DEFAULT_POLICY = {
-    "required_documents": [
-        "commercial_invoice",
-        "bill_of_lading",
-        "packing_list",
-        "certificate_of_origin",
-    ],
-    "presentation_period_days": 21,
-    "low_confidence_threshold": 0.75,
-    "severity": {
-        "missing_document": "major",
-        "late_shipment": "major",
-        "late_presentation": "major",
-        "low_confidence": "minor",
-        "invalid_field": "minor",
-    },
-}
+from core.config import settings
 
 
-def read_json_file(file_path: Path) -> dict[str, Any]:
-    if not file_path.exists():
+SANCTIONS_LIST_PATH = (
+    Path("data")
+    / "sanctions_lists"
+    / "sanctions_list.json"
+)
+
+
+def read_json(path: Path) -> dict[str, Any]:
+    if not path.exists():
         return {}
 
     try:
-        with file_path.open("r", encoding="utf-8") as file:
+        with open(path, "r", encoding="utf-8") as file:
             return json.load(file)
     except json.JSONDecodeError:
         return {}
 
 
-def write_json_file(file_path: Path, data: dict[str, Any]) -> None:
-    file_path.parent.mkdir(parents=True, exist_ok=True)
+def write_json(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
 
-    with file_path.open("w", encoding="utf-8") as file:
+    with open(path, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=2)
 
 
-def read_policy_file(policy_path: Path) -> dict[str, Any]:
-    policy = DEFAULT_POLICY.copy()
+def normalize_text(value: Any) -> str:
+    if value is None:
+        return ""
 
-    if not policy_path.exists():
-        return policy
-
-    try:
-        import yaml
-
-        with policy_path.open("r", encoding="utf-8") as file:
-            loaded_policy = yaml.safe_load(file) or {}
-
-        policy.update(loaded_policy)
-        policy["severity"] = {
-            **DEFAULT_POLICY["severity"],
-            **loaded_policy.get("severity", {}),
-        }
-
-    except Exception:
-        return policy
-
-    return policy
+    return str(value).strip().lower()
 
 
-def parse_date(value: Any) -> datetime | None:
-    if not value:
-        return None
-
-    try:
-        return datetime.strptime(str(value), "%Y-%m-%d")
-    except ValueError:
-        return None
+def normalize_list(values: list[Any]) -> list[str]:
+    return [normalize_text(value) for value in values]
 
 
 def build_finding(
@@ -94,7 +62,7 @@ def build_finding(
 ) -> dict[str, Any]:
     return {
         "finding_id": finding_id,
-        "agent_name": AGENT_NAME,
+        "agent_name": "Agent E - Sanctions Screening",
         "check_id": check_id,
         "severity": severity,
         "status": status,
@@ -108,185 +76,41 @@ def build_finding(
     }
 
 
-def get_case_id(
-    run_folder: Path,
-    context: dict[str, Any],
-    extracted_fields: dict[str, Any],
-    case_metadata: dict[str, Any],
-) -> str:
-    return (
-        case_metadata.get("case_id")
-        or context.get("case_id")
-        or extracted_fields.get("case_id")
-        or run_folder.name
-    )
-
-
-def get_present_document_types(context: dict[str, Any]) -> list[str]:
-    documents = context.get("documents", [])
-    document_types = []
-
-    for document in documents:
-        if isinstance(document, dict):
-            if document.get("present") is False:
-                continue
-
-            document_type = document.get("document_type")
-
-            if document_type:
-                document_types.append(str(document_type))
-
-    return document_types
-
-
-def check_required_documents(
+def check_value_against_list(
+    findings: list[dict[str, Any]],
     case_id: str,
-    context: dict[str, Any],
-    policy: dict[str, Any],
-) -> list[dict[str, Any]]:
-    findings = []
+    finding_counter: int,
+    check_id: str,
+    document: str,
+    field: str,
+    value: Any,
+    sanctioned_values: list[str],
+    explanation_label: str,
+) -> int:
+    normalized_value = normalize_text(value)
 
-    required_documents = policy.get(
-        "required_documents",
-        DEFAULT_POLICY["required_documents"],
-    )
+    if not normalized_value or not sanctioned_values:
+        return finding_counter
 
-    present_documents = get_present_document_types(context)
+    # Fuzzy match so aliases / slight spelling differences are still caught.
+    threshold = settings.SANCTIONS_MATCH_THRESHOLD
+    match = process.extractOne(normalized_value, sanctioned_values, scorer=fuzz.token_sort_ratio)
 
-    for index, required_document in enumerate(required_documents, start=1):
-        if required_document not in present_documents:
-            findings.append(
-                build_finding(
-                    finding_id=f"C-{case_id}-REQDOC-{index:03}",
-                    check_id="UCP-001",
-                    severity=policy["severity"]["missing_document"],
-                    status="failed",
-                    document=str(required_document),
-                    field="document_presence",
-                    expected_value="present",
-                    actual_value="missing",
-                    explanation=(
-                        f"Required document '{required_document}' is missing "
-                        "from the document bundle."
-                    ),
-                    policy_reference="UCP600_REQUIRED_DOCUMENTS",
-                )
-            )
-
-    return findings
-
-
-def check_latest_shipment_date(
-    case_id: str,
-    extracted_fields: dict[str, Any],
-    policy: dict[str, Any],
-) -> list[dict[str, Any]]:
-    findings = []
-
-    shipment_date_raw = extracted_fields.get("shipment_date")
-    latest_shipment_date_raw = extracted_fields.get("latest_shipment_date")
-
-    shipment_date = parse_date(shipment_date_raw)
-    latest_shipment_date = parse_date(latest_shipment_date_raw)
-
-    if shipment_date is None:
+    if match and match[1] >= threshold:
+        matched_entry, score = match[0], round(match[1], 1)
         findings.append(
             build_finding(
-                finding_id=f"C-{case_id}-SHIP-001",
-                check_id="UCP-002",
-                severity=policy["severity"]["invalid_field"],
-                status="warning",
-                document="transport_document",
-                field="shipment_date",
-                expected_value="valid YYYY-MM-DD shipment date",
-                actual_value=shipment_date_raw,
-                explanation=(
-                    "Shipment date is missing or invalid, so the latest shipment "
-                    "date check could not be fully completed."
-                ),
-                policy_reference="UCP600_LATEST_SHIPMENT_DATE",
-            )
-        )
-
-    if latest_shipment_date is None:
-        findings.append(
-            build_finding(
-                finding_id=f"C-{case_id}-SHIP-002",
-                check_id="UCP-002",
-                severity=policy["severity"]["invalid_field"],
-                status="warning",
-                document="letter_of_credit",
-                field="latest_shipment_date",
-                expected_value="valid YYYY-MM-DD latest shipment date",
-                actual_value=latest_shipment_date_raw,
-                explanation=(
-                    "Latest shipment date is missing or invalid, so the latest "
-                    "shipment date check could not be fully completed."
-                ),
-                policy_reference="UCP600_LATEST_SHIPMENT_DATE",
-            )
-        )
-
-    if shipment_date is None or latest_shipment_date is None:
-        return findings
-
-    if shipment_date > latest_shipment_date:
-        findings.append(
-            build_finding(
-                finding_id=f"C-{case_id}-SHIP-003",
-                check_id="UCP-002",
-                severity=policy["severity"]["late_shipment"],
+                finding_id=f"E-{case_id}-{finding_counter:03}",
+                check_id=check_id,
+                severity="critical",
                 status="failed",
-                document="transport_document",
-                field="shipment_date",
-                expected_value=str(latest_shipment_date.date()),
-                actual_value=str(shipment_date.date()),
+                document=document,
+                field=field,
+                expected_value="not sanctioned",
+                actual_value=value,
                 explanation=(
-                    f"Shipment date {shipment_date.date()} is after the latest "
-                    f"shipment date {latest_shipment_date.date()} allowed by the "
-                    "Letter of Credit."
-                ),
-                policy_reference="UCP600_LATEST_SHIPMENT_DATE",
-            )
-        )
-
-    return findings
-
-
-def check_presentation_period(
-    case_id: str,
-    extracted_fields: dict[str, Any],
-    case_metadata: dict[str, Any],
-    policy: dict[str, Any],
-) -> list[dict[str, Any]]:
-    findings = []
-
-    shipment_date_raw = extracted_fields.get("shipment_date")
-    presentation_date_raw = case_metadata.get("presentation_date")
-
-    shipment_date = parse_date(shipment_date_raw)
-    presentation_date = parse_date(presentation_date_raw)
-
-    presentation_period_raw = (
-        extracted_fields.get("presentation_rule_days")
-        or extracted_fields.get("presentation_period_days")
-        or policy.get("presentation_period_days")
-    )
-
-    if shipment_date is None:
-        findings.append(
-            build_finding(
-                finding_id=f"C-{case_id}-PRES-001",
-                check_id="UCP-003",
-                severity=policy["severity"]["invalid_field"],
-                status="warning",
-                document="transport_document",
-                field="shipment_date",
-                expected_value="valid YYYY-MM-DD shipment date",
-                actual_value=shipment_date_raw,
-                explanation=(
-                    "Shipment date is missing or invalid, so the presentation "
-                    "period check could not be fully completed."
+                    f"{explanation_label} matched the sanctions screening list "
+                    f"('{matched_entry}', score {score})."
                 ),
                 policy_reference="UCP600_PRESENTATION_PERIOD",
             )
@@ -426,114 +250,172 @@ def find_extracted_fields_file(run_folder: Path) -> Path:
     if primary_path.exists():
         return primary_path
 
-    return settings.SAMPLE_DOCS_DIR / "case_001_clean" / "extracted_fields.json"
+    return Path("data") / "sample_documents" / "case_001_clean" / "extracted_fields.json"
 
 
 def run(run_folder: str | Path) -> dict[str, Any]:
+    print("[Agent E] Sanctions Screening Agent running...")
+
     run_folder = Path(run_folder)
 
-    context_path = run_folder / "context.json"
-    extracted_fields_path = find_extracted_fields_file(run_folder)
-    case_metadata_path = run_folder / "case_metadata.json"
-    policy_path = Path("policies") / "policy_pack.yaml"
+    extracted_path = run_folder / "extracted_fields.json"
+    sanctions_path = SANCTIONS_LIST_PATH
 
-    context = read_json_file(context_path)
-    extracted_fields = read_json_file(extracted_fields_path)
-    case_metadata = read_json_file(case_metadata_path)
-    policy = read_policy_file(policy_path)
+    extracted = read_json(extracted_path)
+    sanctions_list = read_json(sanctions_path)
 
-    case_id = get_case_id(
-        run_folder=run_folder,
-        context=context,
-        extracted_fields=extracted_fields,
-        case_metadata=case_metadata,
-    )
-
+    case_id = extracted.get("case_id", "UNKNOWN")
     findings = []
+    finding_counter = 1
 
-    if not context:
+    if not extracted:
         findings.append(
             build_finding(
-                finding_id=f"C-{case_id}-INPUT-001",
+                finding_id=f"E-{case_id}-INPUT-001",
                 check_id="INPUT-001",
-                severity=policy["severity"]["invalid_field"],
-                status="warning",
-                document="context.json",
-                field="file",
-                expected_value="valid context.json",
-                actual_value="missing_or_invalid",
-                explanation=f"context.json is missing or invalid at: {context_path}",
-                policy_reference="INPUT_VALIDATION",
-            )
-        )
-
-    if not extracted_fields:
-        findings.append(
-            build_finding(
-                finding_id=f"C-{case_id}-INPUT-002",
-                check_id="INPUT-002",
-                severity=policy["severity"]["invalid_field"],
+                severity="minor",
                 status="warning",
                 document="extracted_fields.json",
                 field="file",
                 expected_value="valid extracted_fields.json",
                 actual_value="missing_or_invalid",
-                explanation=(
-                    f"extracted_fields.json is missing or invalid at: "
-                    f"{extracted_fields_path}"
-                ),
+                explanation=f"extracted_fields.json is missing or invalid at: {extracted_path}",
                 policy_reference="INPUT_VALIDATION",
             )
         )
 
-    if not case_metadata:
+    if not sanctions_list:
         findings.append(
             build_finding(
-                finding_id=f"C-{case_id}-INPUT-003",
-                check_id="INPUT-003",
-                severity=policy["severity"]["invalid_field"],
+                finding_id=f"E-{case_id}-INPUT-002",
+                check_id="INPUT-002",
+                severity="minor",
                 status="warning",
-                document="case_metadata.json",
+                document="sanctions_list.json",
                 field="file",
-                expected_value="valid case_metadata.json",
+                expected_value="valid sanctions_list.json",
                 actual_value="missing_or_invalid",
-                explanation=f"case_metadata.json is missing or invalid at: {case_metadata_path}",
+                explanation=f"sanctions list is missing or invalid at: {sanctions_path}",
                 policy_reference="INPUT_VALIDATION",
             )
         )
 
-    findings.extend(check_required_documents(case_id, context, policy))
-    findings.extend(check_latest_shipment_date(case_id, extracted_fields, policy))
-    findings.extend(
-        check_presentation_period(
+    if not extracted or not sanctions_list:
+        result = {
+            "case_id": case_id,
+            "findings": findings,
+        }
+
+        output_path = run_folder / "sanctions_result.json"
+        write_json(output_path, result)
+
+        print("Agent E completed with input warning")
+        print(f"sanctions_result.json created at: {output_path}")
+        print(f"Findings created: {len(findings)}")
+
+        return result
+
+    sanctioned_parties = normalize_list(sanctions_list.get("sanctioned_parties", []))
+    sanctioned_countries = normalize_list(sanctions_list.get("sanctioned_countries", []))
+    sanctioned_ports = normalize_list(sanctions_list.get("sanctioned_ports", []))
+    sanctioned_vessels = normalize_list(sanctions_list.get("sanctioned_vessels", []))
+
+    lc = extracted.get("letter_of_credit", {})
+    invoice = extracted.get("commercial_invoice", {})
+    bol = extracted.get("bill_of_lading", {})
+    coo = extracted.get("certificate_of_origin", {})
+
+    party_checks = [
+        ("SAN-001", "letter_of_credit", "applicant", lc.get("applicant"), "Applicant"),
+        ("SAN-002", "letter_of_credit", "beneficiary", lc.get("beneficiary"), "Beneficiary"),
+        ("SAN-003", "commercial_invoice", "buyer", invoice.get("buyer"), "Buyer"),
+        ("SAN-004", "commercial_invoice", "seller", invoice.get("seller"), "Seller"),
+        ("SAN-005", "bill_of_lading", "shipper", bol.get("shipper"), "Shipper"),
+        ("SAN-006", "bill_of_lading", "consignee", bol.get("consignee"), "Consignee"),
+        ("SAN-007", "certificate_of_origin", "exporter", coo.get("exporter"), "Exporter"),
+    ]
+
+    for check_id, document, field, value, label in party_checks:
+        finding_counter = check_value_against_list(
+            findings=findings,
             case_id=case_id,
-            extracted_fields=extracted_fields,
-            case_metadata=case_metadata,
-            policy=policy,
+            finding_counter=finding_counter,
+            check_id=check_id,
+            document=document,
+            field=field,
+            value=value,
+            sanctioned_values=sanctioned_parties,
+            explanation_label=label,
         )
-    )
-    findings.extend(check_low_confidence_fields(case_id, extracted_fields, policy))
+
+    country_checks = [
+        ("SAN-008", "certificate_of_origin", "country_of_origin", coo.get("country_of_origin"), "Country of origin"),
+        ("SAN-009", "letter_of_credit", "country", lc.get("country"), "Letter of Credit country"),
+    ]
+
+    for check_id, document, field, value, label in country_checks:
+        finding_counter = check_value_against_list(
+            findings=findings,
+            case_id=case_id,
+            finding_counter=finding_counter,
+            check_id=check_id,
+            document=document,
+            field=field,
+            value=value,
+            sanctioned_values=sanctioned_countries,
+            explanation_label=label,
+        )
+
+    port_checks = [
+        ("SAN-010", "bill_of_lading", "port_of_loading", bol.get("port_of_loading"), "Port of loading"),
+        ("SAN-011", "bill_of_lading", "port_of_discharge", bol.get("port_of_discharge"), "Port of discharge"),
+    ]
+
+    for check_id, document, field, value, label in port_checks:
+        finding_counter = check_value_against_list(
+            findings=findings,
+            case_id=case_id,
+            finding_counter=finding_counter,
+            check_id=check_id,
+            document=document,
+            field=field,
+            value=value,
+            sanctioned_values=sanctioned_ports,
+            explanation_label=label,
+        )
+
+    vessel_checks = [
+        ("SAN-012", "bill_of_lading", "vessel_name", bol.get("vessel_name"), "Vessel"),
+        ("SAN-013", "bill_of_lading", "vessel", bol.get("vessel"), "Vessel"),
+    ]
+
+    for check_id, document, field, value, label in vessel_checks:
+        finding_counter = check_value_against_list(
+            findings=findings,
+            case_id=case_id,
+            finding_counter=finding_counter,
+            check_id=check_id,
+            document=document,
+            field=field,
+            value=value,
+            sanctioned_values=sanctioned_vessels,
+            explanation_label=label,
+        )
 
     result = {
         "case_id": case_id,
         "findings": findings,
     }
 
-    output_path = run_folder / "ucp_result.json"
-    write_json_file(output_path, result)
+    output_path = run_folder / "sanctions_result.json"
+    write_json(output_path, result)
 
-    print("Agent C completed")
-    print(f"ucp_result.json created at: {output_path}")
+    print("Agent E completed")
+    print(f"sanctions_result.json created at: {output_path}")
     print(f"Findings created: {len(findings)}")
 
     return result
 
 
 if __name__ == "__main__":
-    output = run("runs/run_001")
-
-    print()
-    print("Summary")
-    print("-" * 40)
-    print("Case:", output["case_id"])
-    print("Findings:", len(output["findings"]))
+    run("runs/run_001")

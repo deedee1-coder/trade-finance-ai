@@ -41,6 +41,28 @@ def normalize_text(value: Any) -> str:
     return str(value).strip().lower()
 
 
+def amount_tolerance_pct() -> float:
+    # UCP 600 allows a small tolerance on the L/C amount; read it from the policy pack.
+    try:
+        policy = yaml.safe_load((Path("policies") / "policy_pack.yaml").read_text(encoding="utf-8")) or {}
+        return float(policy.get("examination", {}).get("amount_tolerance_pct", 0.0))
+    except Exception:
+        return 0.0
+
+
+def names_match(a: str, b: str) -> bool:
+    # Fuzzy comparison so variations still match — token_set_ratio also matches a name
+    # whether or not a trailing address is included (e.g. "ABC Ltd" vs "ABC Ltd, Milan").
+    if not a or not b:
+        return False
+    return fuzz.token_set_ratio(a, b) >= NAME_MATCH_THRESHOLD
+
+
+def is_to_order(consignee: str) -> bool:
+    # A negotiable ("to order") bill of lading is standard practice and is NOT a party mismatch.
+    return "to order" in consignee
+
+
 def build_finding(
     finding_id: str,
     check_id: str,
@@ -145,10 +167,9 @@ def run(run_folder: str | Path) -> dict[str, Any]:
             lc_amount_float = float(lc_amount)
             invoice_amount_float = float(invoice_amount)
 
-            difference = invoice_amount_float - lc_amount_float
-            diff_pct = (abs(difference) / lc_amount_float * 100) if lc_amount_float else 0.0
+            if lc_amount_float != invoice_amount_float:
+                difference = invoice_amount_float - lc_amount_float
 
-            if diff_pct > amount_tolerance_pct:
                 findings.append(
                     build_finding(
                         finding_id=f"D-{case_id}-002",
@@ -160,28 +181,8 @@ def run(run_folder: str | Path) -> dict[str, Any]:
                         expected_value=lc_amount,
                         actual_value=invoice_amount,
                         explanation=(
-                            f"Invoice amount {invoice_amount} differs from L/C amount {lc_amount} "
-                            f"by {diff_pct:.2f}%, exceeding the {amount_tolerance_pct}% tolerance "
-                            f"(UCP 600 Art. 18c). Difference: {difference:+.2f}."
-                        ),
-                        policy_reference="CROSS_DOCUMENT_AMOUNT_MATCH",
-                    )
-                )
-            elif difference != 0:
-                findings.append(
-                    build_finding(
-                        finding_id=f"D-{case_id}-002",
-                        check_id="MATCH-001",
-                        severity="minor",
-                        status="warning",
-                        document="commercial_invoice",
-                        field="amount",
-                        expected_value=lc_amount,
-                        actual_value=invoice_amount,
-                        explanation=(
-                            f"Invoice amount {invoice_amount} differs from L/C amount {lc_amount} "
-                            f"by {diff_pct:.2f}% — within the {amount_tolerance_pct}% tolerance "
-                            f"(UCP 600 Art. 18c). Flagged for awareness only."
+                            "Commercial invoice amount does not match the Letter of Credit amount. "
+                            f"Difference: USD {difference:.0f}."
                         ),
                         policy_reference="CROSS_DOCUMENT_AMOUNT_MATCH",
                     )
@@ -274,7 +275,7 @@ def run(run_folder: str | Path) -> dict[str, Any]:
                 policy_reference="CROSS_DOCUMENT_APPLICANT_MATCH",
             )
         )
-    elif not (applicant == buyer == consignee):
+    elif not names_match(applicant, buyer) or not (is_to_order(consignee) or names_match(consignee, applicant)):
         findings.append(
             build_finding(
                 finding_id=f"D-{case_id}-007",
@@ -288,7 +289,10 @@ def run(run_folder: str | Path) -> dict[str, Any]:
                     "commercial_invoice.buyer": invoice_buyer,
                     "bill_of_lading.consignee": bol_consignee,
                 },
-                explanation="Applicant, Buyer and Consignee values do not match across documents.",
+                explanation=(
+                    "Applicant, Buyer and Consignee values do not match across documents "
+                    "(a 'to order' bill of lading is treated as acceptable)."
+                ),
                 policy_reference="CROSS_DOCUMENT_APPLICANT_MATCH",
             )
         )
@@ -327,7 +331,7 @@ def run(run_folder: str | Path) -> dict[str, Any]:
                 policy_reference="CROSS_DOCUMENT_BENEFICIARY_MATCH",
             )
         )
-    elif not (beneficiary == seller == shipper == exporter):
+    elif not (names_match(beneficiary, seller) and names_match(beneficiary, shipper) and names_match(beneficiary, exporter)):
         findings.append(
             build_finding(
                 finding_id=f"D-{case_id}-009",
