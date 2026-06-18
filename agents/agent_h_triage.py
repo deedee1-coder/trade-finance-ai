@@ -98,6 +98,9 @@ def run(run_folder: str | Path) -> dict[str, Any]:
         "discrepancies": findings,
     }
 
+    # Best-effort plain-English overview (does not affect the decision above).
+    final_decision["summary"] = _llm_summary(final_decision)
+
     metrics = {
         "run_id": run_folder.name,
         "case_id": case_id,
@@ -331,6 +334,34 @@ def _exception_categories(findings: list[dict[str, Any]]) -> list[dict[str, Any]
 def _routing_for(decision: str) -> dict[str, str]:
     # Says who the case goes to next and what the follow-up action is.
     return ROUTING.get(decision, ROUTING["MANUAL_REVIEW"])
+
+
+def _llm_summary(final_decision: dict[str, Any]) -> str:
+    # Best-effort plain-English overview of the decision that was ALREADY made.
+    # The LLM only rephrases the structured result — it never changes the decision.
+    # Returns "" on any failure so the pipeline never depends on it.
+    try:
+        from core.llm_client import call_claude
+
+        facts = {
+            "decision": final_decision.get("decision"),
+            "processing_status": final_decision.get("processing_status"),
+            "rationale": final_decision.get("decision_rationale"),
+            "routing": final_decision.get("routing"),
+            "discrepancies": [
+                {"severity": d.get("severity"), "explanation": d.get("explanation")}
+                for d in final_decision.get("discrepancies", [])
+            ],
+        }
+        system = (
+            "You summarise a trade-finance examination decision for a human reviewer. "
+            "Write 2-3 short, plain sentences. Use ONLY the facts provided — do not invent "
+            "anything and do not change or question the decision."
+        )
+        user = "Summarise this decision:\n" + json.dumps(facts, indent=2)
+        return call_claude(system, user, max_tokens=200).strip()
+    except Exception:
+        return ""
 
 
 def _make_decision(findings: list[dict[str, Any]], policy: dict[str, Any]) -> tuple[str, str, str]:

@@ -33,6 +33,11 @@ tabs = st.tabs(["Overview", "Findings", "L/C Terms", "Extracted Fields", "SWIFT 
 
 # ── Overview ──────────────────────────────────────────────────────────────────
 with tabs[0]:
+    summary = final_decision.get("summary")
+    if summary:
+        st.subheader("Summary")
+        st.info(summary)
+
     categories = final_decision.get("exception_categories", []) or []
     st.subheader("Exception categories")
     if categories:

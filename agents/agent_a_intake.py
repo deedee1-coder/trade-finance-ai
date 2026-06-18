@@ -167,20 +167,23 @@ def _document_type_for(filename: str, manifest_documents: dict) -> str:
 def _read_lc_terms(lc_pages: list[dict], lc_filename: str) -> tuple[dict, dict]:
     # Reads the Letter of Credit line by line and copies the key terms into a dictionary.
     # For every term, also records which document and page it came from (the evidence index).
+    # Handles both "Label: value" and "Label value" (table) layouts by matching the label
+    # as the start of the line. Longest labels are tried first so specific ones win.
+    labels = sorted(LC_TERM_LABELS.items(), key=lambda kv: len(kv[0]), reverse=True)
     terms: dict = {}
     evidence: dict = {}
     for page in lc_pages:
         page_number = page["page"]
         for line in page["text"].splitlines():
-            if ":" not in line:
-                continue
-            label_part, value_part = line.split(":", 1)
-            label = label_part.strip().lower()
-            value = value_part.strip()
-            key = LC_TERM_LABELS.get(label)
-            if key and value and key not in terms:
-                terms[key] = value
-                evidence[key] = {"document": lc_filename, "page": page_number}
+            stripped = line.strip()
+            lowered = stripped.lower()
+            for label, key in labels:
+                if key not in terms and lowered.startswith(label):
+                    value = stripped[len(label):].lstrip(" :\t-").strip()
+                    if value:
+                        terms[key] = value
+                        evidence[key] = {"document": lc_filename, "page": page_number}
+                    break
     return terms, evidence
 
 
