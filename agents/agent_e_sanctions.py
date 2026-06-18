@@ -2,6 +2,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from rapidfuzz import fuzz, process
+
+from core.config import settings
+
 
 SANCTIONS_LIST_PATH = (
     Path("data")
@@ -50,6 +54,7 @@ def build_finding(
     actual_value: Any,
     explanation: str,
     policy_reference: str,
+    evidence: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return {
         "finding_id": finding_id,
@@ -62,7 +67,7 @@ def build_finding(
         "expected_value": expected_value,
         "actual_value": actual_value,
         "explanation": explanation,
-        "evidence": [],
+        "evidence": evidence or [],
         "policy_reference": policy_reference,
     }
 
@@ -80,10 +85,15 @@ def check_value_against_list(
 ) -> int:
     normalized_value = normalize_text(value)
 
-    if not normalized_value:
+    if not normalized_value or not sanctioned_values:
         return finding_counter
 
-    if normalized_value in sanctioned_values:
+    # Fuzzy match so aliases / slight spelling differences are still caught.
+    threshold = settings.SANCTIONS_MATCH_THRESHOLD
+    match = process.extractOne(normalized_value, sanctioned_values, scorer=fuzz.token_sort_ratio)
+
+    if match and match[1] >= threshold:
+        matched_entry, score = match[0], round(match[1], 1)
         findings.append(
             build_finding(
                 finding_id=f"E-{case_id}-{finding_counter:03}",
@@ -94,8 +104,18 @@ def check_value_against_list(
                 field=field,
                 expected_value="not sanctioned",
                 actual_value=value,
-                explanation=f"{explanation_label} matched the sanctions screening list.",
+                explanation=(
+                    f"{explanation_label} matched the sanctions screening list "
+                    f"('{matched_entry}', score {score})."
+                ),
                 policy_reference="SANCTIONS_SCREENING",
+                evidence=[{
+                    "document": document,
+                    "field": field,
+                    "matched_list_entry": matched_entry,
+                    "match_score": score,
+                    "source": "sanctions_list.json",
+                }],
             )
         )
         finding_counter += 1

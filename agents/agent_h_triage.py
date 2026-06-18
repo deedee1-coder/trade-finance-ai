@@ -321,13 +321,19 @@ def _discrepancy_rates(total: int, severity_counts: dict[str, int], documents_pr
 
 
 def _exception_categories(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    # Groups the findings into named categories, each with a count and the finding IDs in it.
     grouped: dict[str, dict[str, Any]] = {}
+
     for finding in findings:
-        category = CATEGORY_NAMES.get(finding.get("source"), "Other")
+        source = finding.get("source")
+
+        if not isinstance(source, str):
+            source = "triage"
+
+        category = CATEGORY_NAMES.get(source, "Other")
         bucket = grouped.setdefault(category, {"category": category, "count": 0, "finding_ids": []})
         bucket["count"] += 1
         bucket["finding_ids"].append(finding.get("finding_id"))
+
     return sorted(grouped.values(), key=lambda item: item["count"], reverse=True)
 
 

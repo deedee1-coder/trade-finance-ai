@@ -4,8 +4,7 @@ Agent B - Field Extraction
 Responsibilities:
 - Convert each document's raw text into structured, machine-readable fields
 - Assign a confidence score (0–1) to every extracted value
-- Flag low-confidence fields (e.g. degraded scans, handwritten additions) for
-  manual review routing
+- Flag low-confidence fields (e.g. degraded scans, handwritten additions) for manual review routing
 - Output bounding-box / page-position references for traceability
 - Aggregate data across all presented documents for consistent cross-doc matching
 
@@ -247,22 +246,30 @@ def _extract_document(pdf_path: Path, doc_type: str) -> ExtractedDocument:
 
 
 def _safe_float(value: object, default: float = 0.0) -> float:
-    try:
-        if value is None:
-            return default
-        return float(value)
-    except (TypeError, ValueError):
+    if value is None:
         return default
+
+    if isinstance(value, (int, float, str)):
+        try:
+            return float(value)
+        except ValueError:
+            return default
+
+    return default
 
 
 def _safe_page(value: object) -> int:
-    try:
-        if value is None:
-            return 1
-        page = int(value)
-        return page if page > 0 else 1
-    except (TypeError, ValueError):
+    if value is None:
         return 1
+
+    if isinstance(value, (int, float, str)):
+        try:
+            page = int(value)
+            return page if page > 0 else 1
+        except ValueError:
+            return 1
+
+    return 1
 
 
 def _load_context(run_dir: Path) -> dict | None:
