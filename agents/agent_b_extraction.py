@@ -24,8 +24,8 @@ import logging
 from pathlib import Path
 
 from core.config import settings
-from core.llm_client import call_claude, parse_json_response
-from core.pdf_utils import classify_by_filename, extract_pages
+from core.llm_client import call_llm, parse_json_response
+from core.pdf_utils import classify_by_filename, extract_pages, extract_pages_smart, text_quality_score
 from core.schemas import ExtractedDocument, ExtractedDocs, ExtractedField
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # Fields with confidence below this are added to low_confidence_fields
 CONFIDENCE_THRESHOLD = 0.70
 
-# Per-doc-type fields Agent B will ask Claude to extract.
+# Per-doc-type fields Agent B will ask the LLM to extract.
 # Each entry is (field_name, description) so the prompt is self-documenting.
 FIELD_DEFINITIONS: dict[str, list[tuple[str, str]]] = {
     "letter_of_credit": [
@@ -136,7 +136,7 @@ _GENERIC_FIELDS: list[tuple[str, str]] = [
 
 
 def _build_extraction_prompt(doc_type: str, pages: list[dict]) -> tuple[str, str]:
-    """Return (system_prompt, user_message) for Claude."""
+    """Return (system_prompt, user_message) for the LLM call."""
     field_defs = FIELD_DEFINITIONS.get(doc_type, _GENERIC_FIELDS)
     fields_block = "\n".join(
         f'  "{name}": {{"value": ..., "confidence": 0.0–1.0, "page": <page_number>}}  // {desc}'
@@ -171,37 +171,43 @@ def _build_extraction_prompt(doc_type: str, pages: list[dict]) -> tuple[str, str
     return system, user
 
 
-def _assess_text_quality(pages: list[dict]) -> float:
-    """
-    Return a base confidence multiplier (0.5–1.0) based on text density.
-    Sparse text signals a degraded scan; downstream per-field confidences
-    are scaled accordingly so low-quality docs naturally surface more flags.
-    """
-    total_chars = sum(len(p["text"]) for p in pages)
-    page_count = max(len(pages), 1)
-    chars_per_page = total_chars / page_count
-
-    if chars_per_page >= 400:
-        return 1.0
-    if chars_per_page >= 150:
-        return 0.85
-    if chars_per_page >= 50:
-        return 0.65
-    return 0.5  # very sparse — likely scanned
-
-
 def _extract_document(pdf_path: Path, doc_type: str) -> ExtractedDocument:
-    """Extract structured fields from a single PDF and return an ExtractedDocument."""
-    pages = extract_pages(pdf_path)
-    text_quality = _assess_text_quality(pages)
+    """
+    Extract structured fields from a single PDF and return an ExtractedDocument.
+
+    When OCR is enabled (settings.OCR_ENABLED) and native text quality is below
+    settings.OCR_TEXT_QUALITY_THRESHOLD, extraction automatically falls back to
+    Tesseract OCR via pdf_utils.extract_pages_smart().
+    """
+    if settings.OCR_ENABLED:
+        pages, ocr_used = extract_pages_smart(
+            pdf_path,
+            ocr_threshold=settings.OCR_TEXT_QUALITY_THRESHOLD,
+            ocr_dpi=settings.OCR_DPI,
+        )
+    else:
+        pages, ocr_used = extract_pages(pdf_path), False
+
+    # text_quality_score is the shared implementation from pdf_utils;
+    # use it as the confidence multiplier so OCR-produced text gets its
+    # own quality rating (post-OCR quality may be higher than pre-OCR).
+    text_quality = text_quality_score(pages)
+
+    if ocr_used:
+        logger.info("%s: OCR extraction complete (post-OCR quality=%.2f)", pdf_path.name, text_quality)
+    elif text_quality < 0.7:
+        logger.warning(
+            "%s: sparse text (quality=%.2f) — consider installing PyMuPDF + Tesseract for OCR",
+            pdf_path.name, text_quality,
+        )
 
     system_prompt, user_message = _build_extraction_prompt(doc_type, pages)
 
     try:
-        raw_response = call_claude(system_prompt, user_message)
+        raw_response = call_llm(system_prompt, user_message)
         raw_fields: dict = parse_json_response(raw_response)
     except Exception as exc:
-        logger.warning("Claude extraction failed for %s: %s", pdf_path.name, exc)
+        logger.warning("LLM extraction failed for %s: %s", pdf_path.name, exc)
         raw_fields = {}
 
     # Build ExtractedField objects, applying the text-quality multiplier
@@ -230,12 +236,6 @@ def _extract_document(pdf_path: Path, doc_type: str) -> ExtractedDocument:
     # Keep a short raw text snippet for audit trail (first 500 chars of page 1)
     snippet = next((p["text"][:500] for p in pages if p["text"].strip()), "")
 
-    if text_quality < 0.7:
-        logger.warning(
-            "%s: sparse text detected (quality=%.2f) — OCR fallback recommended",
-            pdf_path.name, text_quality,
-        )
-
     return ExtractedDocument(
         doc_type=doc_type,
         filename=pdf_path.name,
@@ -243,6 +243,7 @@ def _extract_document(pdf_path: Path, doc_type: str) -> ExtractedDocument:
         overall_confidence=overall,
         low_confidence_fields=low_confidence,
         raw_text_snippet=snippet,
+        ocr_used=ocr_used,
     )
 
 

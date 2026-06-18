@@ -3,6 +3,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from core.config import settings
+
 
 AGENT_NAME = "Agent C - UCP Compliance"
 
@@ -424,7 +426,7 @@ def find_extracted_fields_file(run_folder: Path) -> Path:
     if primary_path.exists():
         return primary_path
 
-    return Path("data") / "sample_documents" / "case_001_clean" / "extracted_fields.json"
+    return settings.SAMPLE_DOCS_DIR / "case_001_clean" / "extracted_fields.json"
 
 
 def run(run_folder: str | Path) -> dict[str, Any]:

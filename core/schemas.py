@@ -60,6 +60,7 @@ class ExtractedDocument(BaseModel):
     overall_confidence: float = Field(ge=0.0, le=1.0, default=1.0)
     low_confidence_fields: list[str] = Field(default_factory=list)
     raw_text_snippet: str = ""
+    ocr_used: bool = False  # True when OCR fallback was triggered for this document
 
 
 class ExtractedDocs(BaseModel):

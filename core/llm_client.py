@@ -13,7 +13,7 @@ def get_client() -> openai.OpenAI:
     return _client
 
 
-def call_claude(system: str, user: str, max_tokens: int | None = None) -> str:
+def call_llm(system: str, user: str, max_tokens: int | None = None) -> str:
     client = get_client()
     response = client.chat.completions.create(
         model=settings.MODEL,
@@ -29,7 +29,7 @@ def call_claude(system: str, user: str, max_tokens: int | None = None) -> str:
 
 
 def parse_json_response(text: str) -> dict:
-    """Extract and parse JSON from a Claude response that may include markdown fences."""
+    """Extract and parse JSON from an LLM response that may include markdown fences."""
     text = text.strip()
     try:
         return json.loads(text)

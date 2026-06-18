@@ -341,7 +341,7 @@ def _llm_summary(final_decision: dict[str, Any]) -> str:
     # The LLM only rephrases the structured result — it never changes the decision.
     # Returns "" on any failure so the pipeline never depends on it.
     try:
-        from core.llm_client import call_claude
+        from core.llm_client import call_llm
 
         facts = {
             "decision": final_decision.get("decision"),
@@ -359,7 +359,7 @@ def _llm_summary(final_decision: dict[str, Any]) -> str:
             "anything and do not change or question the decision."
         )
         user = "Summarise this decision:\n" + json.dumps(facts, indent=2)
-        return call_claude(system, user, max_tokens=200).strip()
+        return call_llm(system, user, max_tokens=200).strip()
     except Exception:
         return ""
 

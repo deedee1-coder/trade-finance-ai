@@ -2,6 +2,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from core.config import settings
+
+_DEFAULT_AMOUNT_TOLERANCE_PCT = 5.0
+
 
 def read_json(path: Path) -> dict[str, Any]:
     if not path.exists():
@@ -19,6 +23,15 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
 
     with open(path, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=2)
+
+
+def read_policy(policy_path: Path) -> dict[str, Any]:
+    try:
+        import yaml
+        with policy_path.open("r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
 
 
 def normalize_text(value: Any) -> str:
@@ -63,6 +76,10 @@ def run(run_folder: str | Path) -> dict[str, Any]:
     extracted_path = run_folder / "extracted_fields.json"
 
     extracted = read_json(extracted_path)
+    policy = read_policy(settings.POLICIES_DIR / "policy_pack.yaml")
+    amount_tolerance_pct = float(
+        (policy.get("examination") or {}).get("amount_tolerance_pct", _DEFAULT_AMOUNT_TOLERANCE_PCT)
+    )
     case_id = extracted.get("case_id", "UNKNOWN")
 
     findings = []
@@ -128,9 +145,10 @@ def run(run_folder: str | Path) -> dict[str, Any]:
             lc_amount_float = float(lc_amount)
             invoice_amount_float = float(invoice_amount)
 
-            if lc_amount_float != invoice_amount_float:
-                difference = invoice_amount_float - lc_amount_float
+            difference = invoice_amount_float - lc_amount_float
+            diff_pct = (abs(difference) / lc_amount_float * 100) if lc_amount_float else 0.0
 
+            if diff_pct > amount_tolerance_pct:
                 findings.append(
                     build_finding(
                         finding_id=f"D-{case_id}-002",
@@ -142,8 +160,28 @@ def run(run_folder: str | Path) -> dict[str, Any]:
                         expected_value=lc_amount,
                         actual_value=invoice_amount,
                         explanation=(
-                            "Commercial invoice amount does not match the Letter of Credit amount. "
-                            f"Difference: USD {difference:.0f}."
+                            f"Invoice amount {invoice_amount} differs from L/C amount {lc_amount} "
+                            f"by {diff_pct:.2f}%, exceeding the {amount_tolerance_pct}% tolerance "
+                            f"(UCP 600 Art. 18c). Difference: {difference:+.2f}."
+                        ),
+                        policy_reference="CROSS_DOCUMENT_AMOUNT_MATCH",
+                    )
+                )
+            elif difference != 0:
+                findings.append(
+                    build_finding(
+                        finding_id=f"D-{case_id}-002",
+                        check_id="MATCH-001",
+                        severity="minor",
+                        status="warning",
+                        document="commercial_invoice",
+                        field="amount",
+                        expected_value=lc_amount,
+                        actual_value=invoice_amount,
+                        explanation=(
+                            f"Invoice amount {invoice_amount} differs from L/C amount {lc_amount} "
+                            f"by {diff_pct:.2f}% — within the {amount_tolerance_pct}% tolerance "
+                            f"(UCP 600 Art. 18c). Flagged for awareness only."
                         ),
                         policy_reference="CROSS_DOCUMENT_AMOUNT_MATCH",
                     )

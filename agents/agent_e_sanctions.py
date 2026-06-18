@@ -156,11 +156,11 @@ def run(run_folder: str | Path) -> dict[str, Any]:
             "findings": findings,
         }
 
-        output_path = run_folder / "sanctions_result.json"
+        output_path = run_folder / "sanctions_screen.json"
         write_json(output_path, result)
 
         print("Agent E completed with input warning")
-        print(f"sanctions_result.json created at: {output_path}")
+        print(f"sanctions_screen.json created at: {output_path}")
         print(f"Findings created: {len(findings)}")
 
         return result
@@ -257,11 +257,11 @@ def run(run_folder: str | Path) -> dict[str, Any]:
         "findings": findings,
     }
 
-    output_path = run_folder / "sanctions_result.json"
+    output_path = run_folder / "sanctions_screen.json"
     write_json(output_path, result)
 
     print("Agent E completed")
-    print(f"sanctions_result.json created at: {output_path}")
+    print(f"sanctions_screen.json created at: {output_path}")
     print(f"Findings created: {len(findings)}")
 
     return result
