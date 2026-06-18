@@ -9,6 +9,7 @@ pdfplumber
 Pillow
 rapidfuzz
 reportlab
+langgraph
 # OCR support (stretch goal) — also requires Tesseract binary:
 # Windows: https://github.com/UB-Mannheim/tesseract/wiki
 # macOS:   brew install tesseract
