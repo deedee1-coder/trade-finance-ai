@@ -28,14 +28,17 @@ with left:
         "- Takes a trade bundle (the L/C plus its supporting documents)\n"
         "- Extracts the key fields from each document\n"
         "- Validates UCP 600 compliance and cross-checks the documents\n"
-        "- Screens parties, vessel and ports for sanctions\n"
+        "- Screens parties, vessel, and ports for sanctions\n"
+        "- Screens documents for fraud and authenticity signals\n"
+        "- Classifies each finding as auto-waived, needs-applicant, or non-waivable\n"
         "- Decides **honour / refuse / manual review**"
     )
 with right:
     st.markdown("**What it produces**")
     st.markdown(
         "- A final decision with its reasons\n"
-        "- A list of discrepancies, ranked by severity\n"
+        "- A list of discrepancies, ranked by severity and waiver status\n"
+        "- A fraud risk score and authenticity findings\n"
         "- A draft SWIFT message (MT752 / MT734)\n"
         "- A step-by-step audit log\n"
         "- Run metrics (speed, extraction confidence, discrepancy rates)"
@@ -45,14 +48,19 @@ st.divider()
 
 # ── How it works ──────────────────────────────────────────────────────────────
 st.subheader("How it works")
-st.write("Six agents run in a fixed order, each reading and writing files in a shared run folder:")
+st.write(
+    "Eight agents run in sequence. A and B run first, then C / D / E / F run in parallel, "
+    "followed by G and finally H:"
+)
 steps = [
-    ("A", "Intake", "Validates the bundle and builds the case context."),
-    ("B", "Extraction", "Reads each document into structured fields."),
-    ("C", "UCP 600", "Checks the documents against the rulebook."),
-    ("D", "Matching", "Cross-checks the documents against each other."),
-    ("E", "Sanctions", "Screens the parties, vessel, and ports."),
-    ("H", "Decision", "Consolidates everything and decides pay / refuse / review."),
+    ("A", "Intake",     "Validates the bundle and builds the case context."),
+    ("B", "Extraction", "Reads each document into structured fields (OpenAI)."),
+    ("C", "UCP 600",    "Checks documents against the UCP 600 rulebook."),
+    ("D", "Matching",   "Cross-checks amounts, currency, and parties across documents."),
+    ("E", "Sanctions",  "Screens parties, vessel, and ports against the sanctions list."),
+    ("F", "Fraud",      "Checks document authenticity and detects manipulation signals."),
+    ("G", "Waiver",     "Classifies each finding: auto-waived, needs-applicant, or non-waivable."),
+    ("H", "Decision",   "Consolidates findings, applies waiver logic, and decides pay / refuse / review."),
 ]
 cols = st.columns(len(steps))
 for col, (letter, name, desc) in zip(cols, steps):

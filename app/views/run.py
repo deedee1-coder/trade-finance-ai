@@ -18,14 +18,17 @@ from orchestrator.pipeline import run_pipeline
 
 st.title("Run Pipeline")
 
-STEPS = ["agent_a_intake", "agent_b_extraction", "agent_c_ucp600",
-         "agent_d_matching", "agent_e_sanctions", "agent_h_triage"]
+STEPS = [
+    "agent_a_intake", "agent_b_extraction",
+    "agent_c_ucp600", "agent_d_matching", "agent_e_sanctions", "agent_f_fraud",
+    "agent_g_waiver", "agent_h_triage",
+]
 
 
 def run_and_report(bundle_path: Path) -> None:
     """Run the pipeline on a bundle folder and show step-by-step progress."""
-    with st.status("Running the six-agent pipeline…", expanded=True) as status:
-        st.write("Starting Agent A → B → C → D → E → H")
+    with st.status("Running the eight-agent pipeline…", expanded=True) as status:
+        st.write("Starting Agent A → B → [C D E F] → G → H")
         try:
             run_dir = run_pipeline(bundle_path)
         except Exception as exc:  # show the error instead of a blank screen

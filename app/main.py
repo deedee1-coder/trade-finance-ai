@@ -18,8 +18,9 @@ st.set_page_config(
 )
 
 # Define the pages and put the navigation across the TOP (not the sidebar).
-about = st.Page("views/about.py", title="About", icon=":material/info:", default=True)
-run = st.Page("views/run.py", title="Run", icon=":material/play_arrow:")
+about   = st.Page("views/about.py",   title="About",   icon=":material/info:",        default=True)
+run     = st.Page("views/run.py",     title="Run",     icon=":material/play_arrow:")
 results = st.Page("views/results.py", title="Results", icon=":material/fact_check:")
+history = st.Page("views/history.py", title="History", icon=":material/history:")
 
-st.navigation([about, run, results], position="top").run()
+st.navigation([about, run, results, history], position="top").run()
