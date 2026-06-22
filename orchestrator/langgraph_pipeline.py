@@ -11,13 +11,14 @@ Graph topology (matches the ITFDS architecture spec):
       |
     extraction      Agent B  — field extraction + confidence scoring
       |
-    compat          writes extracted_fields.json for C / D / E
-     /|\
-    C  D  E         Agents C/D/E run in parallel (fan-out):
-    |  |  |           C — UCP 600 compliance
-    |  |  |           D — cross-document matching
-    |  |  |           E — sanctions screening
-     \|/
+    compat          writes extracted_fields.json for C / D / E / F
+     /|\ \
+    C  D  E  F      Agents C/D/E/F run in parallel (fan-out):
+    |  |  |  |        C — UCP 600 compliance
+    |  |  |  |        D — cross-document matching
+    |  |  |  |        E — sanctions screening
+    |  |  |  |        F — fraud / authenticity screening
+     \|/ /
     triage          Agent H  — exception triage + SWIFT draft
       |
     [HONOUR | REFUSE | MANUAL_REVIEW]
@@ -159,6 +160,23 @@ def node_sanctions(state: PipelineState) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Node: Agent F — Fraud / Authenticity Screening
+# Checks for synthetic document markers, invoice arithmetic consistency,
+# L/C reference integrity in the invoice, and document date plausibility.
+# Runs in parallel with C / D / E — reads extracted_docs.json and context.json.
+# ---------------------------------------------------------------------------
+
+def node_fraud(state: PipelineState) -> dict:
+    from agents.agent_f_fraud import run as run_f
+
+    try:
+        run_f(Path(state["run_dir"]))
+        return {"step_results": _ok("agent_f_fraud")}
+    except Exception as exc:
+        return {"step_results": _fail("agent_f_fraud", exc)}
+
+
+# ---------------------------------------------------------------------------
 # Node: Agent H — Exception Triage & Lead Orchestrator
 # Merges and deduplicates findings from C / D / E, applies rule-based logic,
 # assigns a final decision, and generates discrepancies.md + swift_draft.txt.
@@ -204,6 +222,7 @@ def build_graph():
     graph.add_node("ucp600",     node_ucp600)
     graph.add_node("matching",   node_matching)
     graph.add_node("sanctions",  node_sanctions)
+    graph.add_node("fraud",      node_fraud)
     graph.add_node("triage",     node_triage)
 
     # Sequential spine: intake → extraction → compat
@@ -211,15 +230,17 @@ def build_graph():
     graph.add_edge("intake",     "extraction")
     graph.add_edge("extraction", "compat")
 
-    # Parallel fan-out: compat triggers C, D, E simultaneously
+    # Parallel fan-out: compat triggers C, D, E, F simultaneously
     graph.add_edge("compat", "ucp600")
     graph.add_edge("compat", "matching")
     graph.add_edge("compat", "sanctions")
+    graph.add_edge("compat", "fraud")
 
-    # Fan-in: triage waits for all three to complete before running
+    # Fan-in: triage waits for all four to complete before running
     graph.add_edge("ucp600",    "triage")
     graph.add_edge("matching",  "triage")
     graph.add_edge("sanctions", "triage")
+    graph.add_edge("fraud",     "triage")
 
     # Conditional exit: HONOUR → settle, REFUSE → refusal desk, MANUAL_REVIEW → hold
     graph.add_conditional_edges(

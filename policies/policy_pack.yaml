@@ -34,6 +34,22 @@ routing:
   refuse_swift_type: MT734
   manual_review_swift_type: MT752
 
+fraud:
+  # Minimum fraud risk score (0–100) to escalate to MANUAL_REVIEW
+  risk_score_review_threshold: 20
+  # Synthetic/template markers on core settlement docs (L/C, B/L) → major finding
+  synthetic_marker_core_doc_severity: major
+  # Synthetic/template markers on supporting docs (invoice, COO, packing list) → minor
+  synthetic_marker_supporting_doc_severity: minor
+  # Invoice total does not match qty × unit price → major finding
+  arithmetic_mismatch_severity: major
+  # Invoice references wrong L/C number → major finding
+  lc_reference_mismatch_severity: major
+  # B/L or invoice date after L/C expiry → major finding
+  date_after_expiry_severity: major
+  # COO issued >5 days after B/L → minor finding
+  coo_date_anomaly_severity: minor
+
 severity:
   amount_mismatch: major
   currency_mismatch: major
@@ -42,4 +58,8 @@ severity:
   late_shipment: major
   missing_document: major
   sanctions_hit: critical
+  fraud_synthetic_marker: major
+  fraud_arithmetic_mismatch: major
+  fraud_lc_reference_mismatch: major
+  fraud_date_anomaly: major
   low_confidence: minor

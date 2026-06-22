@@ -24,6 +24,7 @@ INPUT_ARTIFACTS = {
     "ucp": ["ucp_result.json"],
     "matching": ["match_result.json"],
     "sanctions": ["sanctions_screen.json", "sanctions_result.json"],
+    "fraud": ["fraud_screen.json"],
 }
 
 # Friendly names used to group findings into exception categories (by which agent raised them).
@@ -31,6 +32,7 @@ CATEGORY_NAMES = {
     "ucp": "UCP 600 Compliance",
     "matching": "Cross-Document Consistency",
     "sanctions": "Sanctions / Screening",
+    "fraud": "Fraud / Authenticity",
     "triage": "Intake / Missing Inputs",
 }
 
