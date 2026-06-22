@@ -19,6 +19,8 @@ Graph topology (matches the ITFDS architecture spec):
     |  |  |  |        E — sanctions screening
     |  |  |  |        F — fraud / authenticity screening
      \|/ /
+    waiver          Agent G  — discrepancy waiver classification
+      |
     triage          Agent H  — exception triage + SWIFT draft
       |
     [HONOUR | REFUSE | MANUAL_REVIEW]
@@ -177,9 +179,27 @@ def node_fraud(state: PipelineState) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Node: Agent G — Discrepancy Waiver Classification
+# Reads all findings from C / D / E / F and classifies each one as
+# WAIVABLE_AUTO, WAIVABLE_NEEDS_APPLICANT, or NON_WAIVABLE.
+# Runs sequentially after the parallel fan-in, before triage.
+# ---------------------------------------------------------------------------
+
+def node_waiver(state: PipelineState) -> dict:
+    from agents.agent_g_waiver import run as run_g
+
+    try:
+        run_g(Path(state["run_dir"]))
+        return {"step_results": _ok("agent_g_waiver")}
+    except Exception as exc:
+        return {"step_results": _fail("agent_g_waiver", exc)}
+
+
+# ---------------------------------------------------------------------------
 # Node: Agent H — Exception Triage & Lead Orchestrator
-# Merges and deduplicates findings from C / D / E, applies rule-based logic,
-# assigns a final decision, and generates discrepancies.md + swift_draft.txt.
+# Merges and deduplicates findings from C / D / E / F, applies waiver-aware
+# rule-based logic, assigns a final decision, and generates discrepancies.md
+# + swift_draft.txt.
 # ---------------------------------------------------------------------------
 
 def node_triage(state: PipelineState) -> dict:
@@ -223,6 +243,7 @@ def build_graph():
     graph.add_node("matching",   node_matching)
     graph.add_node("sanctions",  node_sanctions)
     graph.add_node("fraud",      node_fraud)
+    graph.add_node("waiver",     node_waiver)
     graph.add_node("triage",     node_triage)
 
     # Sequential spine: intake → extraction → compat
@@ -236,11 +257,12 @@ def build_graph():
     graph.add_edge("compat", "sanctions")
     graph.add_edge("compat", "fraud")
 
-    # Fan-in: triage waits for all four to complete before running
-    graph.add_edge("ucp600",    "triage")
-    graph.add_edge("matching",  "triage")
-    graph.add_edge("sanctions", "triage")
-    graph.add_edge("fraud",     "triage")
+    # Fan-in: waiver waits for all four parallel branches, then triage waits for waiver
+    graph.add_edge("ucp600",    "waiver")
+    graph.add_edge("matching",  "waiver")
+    graph.add_edge("sanctions", "waiver")
+    graph.add_edge("fraud",     "waiver")
+    graph.add_edge("waiver",    "triage")
 
     # Conditional exit: HONOUR → settle, REFUSE → refusal desk, MANUAL_REVIEW → hold
     graph.add_conditional_edges(

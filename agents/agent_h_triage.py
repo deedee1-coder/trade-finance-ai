@@ -59,6 +59,9 @@ def run(run_folder: str | Path) -> dict[str, Any]:
     context = _read_json(run_folder / "context.json") or _read_json(run_folder / "context_packet.json")
     policy = _read_yaml(settings.POLICIES_DIR / "policy_pack.yaml")
 
+    waiver_data = _read_json(run_folder / "waiver_result.json")
+    waiver_index: dict[str, str] = waiver_data.get("waiver_index", {})
+
     loaded_artifacts: dict[str, dict[str, Any]] = {}
     findings: list[dict[str, Any]] = []
 
@@ -70,7 +73,7 @@ def run(run_folder: str | Path) -> dict[str, Any]:
 
         artifact = _read_json(artifact_path)
         loaded_artifacts[source] = artifact
-        findings.extend(_normalize_findings(source, artifact.get("findings", [])))
+        findings.extend(_normalize_findings(source, artifact.get("findings", []), waiver_index))
 
     case_id = _case_id(context, loaded_artifacts, run_folder)
     findings = _dedupe_findings(findings)
@@ -95,6 +98,7 @@ def run(run_folder: str | Path) -> dict[str, Any]:
         "major_discrepancy_count": severity_counts["major"],
         "minor_discrepancy_count": severity_counts["minor"],
         "total_discrepancy_count": len(findings),
+        "waiver_summary": waiver_data.get("summary", {}),
         "exception_categories": _exception_categories(findings),
         "routing": _routing_for(decision),
         "discrepancies": findings,
@@ -181,7 +185,11 @@ def _case_id(context: dict[str, Any], artifacts: dict[str, dict[str, Any]], run_
     return run_folder.name
 
 
-def _normalize_findings(source: str, raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _normalize_findings(
+    source: str,
+    raw_findings: list[dict[str, Any]],
+    waiver_index: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
     normalized = []
     for index, finding in enumerate(raw_findings, start=1):
         severity = str(finding.get("severity") or "minor").lower()
@@ -190,9 +198,12 @@ def _normalize_findings(source: str, raw_findings: list[dict[str, Any]]) -> list
         if severity not in {"critical", "major", "minor", "info"}:
             severity = "minor"
 
+        finding_id = finding.get("finding_id") or f"H-{source.upper()}-{index:03}"
+        waiver_status = (waiver_index or {}).get(finding_id)
+
         normalized.append(
             {
-                "finding_id": finding.get("finding_id") or f"H-{source.upper()}-{index:03}",
+                "finding_id": finding_id,
                 "source": source,
                 "agent_name": finding.get("agent_name") or source,
                 "check_id": finding.get("check_id") or "UNKNOWN",
@@ -206,6 +217,7 @@ def _normalize_findings(source: str, raw_findings: list[dict[str, Any]]) -> list
                 "evidence": finding.get("evidence") or [],
                 "policy_reference": finding.get("policy_reference") or "UNSPECIFIED",
                 "waivable": _is_waivable(severity, finding),
+                "waiver_status": waiver_status,
             }
         )
     return normalized
@@ -373,7 +385,9 @@ def _llm_summary(final_decision: dict[str, Any]) -> str:
 
 
 def _make_decision(findings: list[dict[str, Any]], policy: dict[str, Any]) -> tuple[str, str, str]:
-    counts = _count_severities(findings)
+    # WAIVABLE_AUTO findings are excluded from the decision — they do not block settlement.
+    blocking = [f for f in findings if f.get("waiver_status") != "WAIVABLE_AUTO"]
+    counts = _count_severities(blocking)
     discrepancy_policy = policy.get("discrepancy", {})
     sanctions_policy = policy.get("sanctions", {})
 

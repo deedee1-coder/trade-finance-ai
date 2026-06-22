@@ -34,6 +34,14 @@ routing:
   refuse_swift_type: MT734
   manual_review_swift_type: MT752
 
+waiver:
+  # Minor data-quality and input-validation findings are auto-waived (not blocking)
+  auto_waive_data_quality: true
+  # Classifications:
+  #   WAIVABLE_AUTO             — bank proceeds without contacting the applicant
+  #   WAIVABLE_NEEDS_APPLICANT  — applicant must confirm before settlement
+  #   NON_WAIVABLE              — fraud, sanctions, missing doc, currency mismatch
+
 fraud:
   # Minimum fraud risk score (0–100) to escalate to MANUAL_REVIEW
   risk_score_review_threshold: 20
